@@ -173,7 +173,6 @@
         timeline.innerHTML = '';
         timeline.style.width = (daysInView * dayWidth) + "px";
 
-        // Headers & Today Line
         for (let i = 1; i <= daysInView; i++) {
             const isToday = (viewMonthIdx === realMonth && i === realDay);
             const lbl = document.createElement('div');
@@ -190,7 +189,7 @@
         }
 
         let globalIndex = 0;
-        let vLinesToDraw = {}; // Tracker to prevent duplicates
+        let vLinesToDraw = {}; 
 
         Object.keys(masterData).sort().forEach(monthKey => {
             const content = masterData[monthKey];
@@ -210,27 +209,34 @@
                     const [_, name, op, val] = simpleMatch;
                     const day = parseInt(val);
                     let left = 1, right = daysInView, showL = false, showR = false;
+                    let shouldShow = false;
+
                     const viewMonthInt = parseInt(monthPicker.value);
                     const originMonthInt = parseInt(monthKey);
 
-                    if (op === '>=') {
-                        if (viewMonthInt === originMonthInt) { left = day; showL = true; }
-                        else if (viewMonthInt > originMonthInt) { /* show full */ } else return;
+                    if (op === '=') {
+                        if (viewMonthInt === originMonthInt) {
+                            left = day; right = day; showL = true; showR = true; shouldShow = true;
+                        }
+                    } else if (op === '>=') {
+                        if (viewMonthInt === originMonthInt) { 
+                            left = day; showL = true; shouldShow = true; 
+                        } else if (viewMonthInt > originMonthInt) { shouldShow = true; }
                     } else if (op === '<=') {
-                        if (viewMonthInt === originMonthInt) { right = day; showR = true; }
-                        else if (viewMonthInt < originMonthInt) { /* show full */ } else return;
+                        if (viewMonthInt === originMonthInt) { 
+                            right = day; showR = true; shouldShow = true; 
+                        } else if (viewMonthInt < originMonthInt) { shouldShow = true; }
                     }
 
-                    // Store Line Info instead of drawing immediately
-                    if (showL) vLinesToDraw[(left - 1) * dayWidth] = color;
-                    if (showR) vLinesToDraw[right * dayWidth] = color;
-
-                    drawBar(name, comment, left, right, yPos, color, showL, showR);
+                    if (shouldShow) {
+                        if (showL) vLinesToDraw[(left - 1) * dayWidth] = color;
+                        if (showR) vLinesToDraw[right * dayWidth] = color;
+                        drawBar(name, comment, left, right, yPos, color, showL, showR);
+                    }
                 }
             });
         });
 
-        // Draw unique lines ONCE
         Object.keys(vLinesToDraw).forEach(x => {
             const line = document.createElement('div');
             line.className = 'v-line';
@@ -251,40 +257,6 @@
         bar.style.backgroundColor = color + "15"; 
         bar.style.color = color;
         bar.style.borderLeft = showL ? `2px solid ${color}` : "none";
-        bar.style.borderRight = showR ? `2px solid ${color}` : "none";
-
-        const group = document.createElement('div');
-        group.className = 'clamped-group';
-        group.innerHTML = `<span class="subject-name">${name.toUpperCase()}</span>`;
-        if (comment) group.innerHTML += `<span class="comment-text">${comment}</span>`;
-
-        bar.appendChild(group);
-        timeline.appendChild(bar);
-    }
-
-    editor.addEventListener('input', saveToCloud);
-    monthPicker.addEventListener('change', renderGraph);
-    document.getElementById('today-btn').onclick = () => {
-        monthPicker.value = realMonth;
-        renderGraph();
-        viewport.scrollLeft = (realDay - 1) * dayWidth - (viewport.clientWidth / 2) + (dayWidth / 2);
-    };
-
-    viewport.addEventListener('wheel', (e) => {
-        if (e.deltaY !== 0) { e.preventDefault(); viewport.scrollLeft += e.deltaY; }
-    }, { passive: false });
-
-    let isDown = false; let startX; let scrollLeft;
-    viewport.addEventListener('mousedown', (e) => {
-        isDown = true; startX = e.pageX - viewport.offsetLeft; scrollLeft = viewport.scrollLeft;
-    });
-    viewport.addEventListener('mouseup', () => isDown = false);
-    viewport.addEventListener('mousemove', (e) => {
-        if (!isDown) return;
-        const x = e.pageX - viewport.offsetLeft;
-        const walk = (x - startX) * 2;
-        viewport.scrollLeft = scrollLeft - walk;
-    });
-</script>
+        bar.style.borderRight = showR ?
 </body>
 </html>
