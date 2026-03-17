@@ -2,11 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Constraint Timeline</title>
     <style>
         :root {
             --bg: #0f172a;
             --panel: #1e293b;
-            --grid: rgba(255, 255, 255, 0.05); /* Dimmer grid */
+            --grid: rgba(255, 255, 255, 0.05);
             --day-width: 140px;
             --sidebar-width: 350px;
             --accent: #38bdf8;
@@ -58,7 +60,7 @@
             flex-grow: 1; position: relative; overflow-x: auto; overflow-y: hidden;
             cursor: grab; background-image: linear-gradient(90deg, var(--grid) 1px, transparent 1px);
             background-size: var(--day-width) 100%;
-            scrollbar-width: none;
+            scrollbar-width: none; -ms-overflow-style: none;
         }
         .main-content::-webkit-scrollbar { display: none; }
         .timeline-content { height: 100%; position: relative; }
@@ -73,12 +75,11 @@
         .today-marker-line {
             position: absolute; top: 0; bottom: 0; width: 2px;
             background: var(--today-color); z-index: 60; pointer-events: none;
-            box-shadow: none; /* Removed glow */
         }
 
         .today-label-active { color: #fff !important; background: var(--today-color); font-weight: 900; }
 
-        /* BARS & LINES */
+        /* BARS & LABELS */
         .h-zone { position: absolute; height: 46px; z-index: 20; border-radius: 6px; display: flex; align-items: center; }
         
         .clamped-group {
@@ -90,7 +91,6 @@
         .subject-name { font-weight: 900; font-size: 12px; letter-spacing: 0.5px; }
         .comment-text { font-weight: 400; font-size: 10px; opacity: 0.7; color: #fff; white-space: nowrap; margin-top: 2px; }
         
-        /* Clean Vertical Line - No Glow */
         .v-line { 
             position: absolute; top: 0; bottom: 0; width: 1px; 
             z-index: 10; opacity: 0.8; pointer-events: none;
@@ -138,7 +138,7 @@
     const statusTag = document.getElementById('status');
     
     const dayWidth = 140;
-    const realMonth = 2; 
+    const realMonth = 2; // March 2026
     const realDay = 17;
     let masterData = {};
 
@@ -152,6 +152,7 @@
         monthPicker.appendChild(opt);
     });
 
+    // FIREBASE LISTEN
     onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
         if (data) {
@@ -163,7 +164,9 @@
 
     function saveToCloud() {
         masterData[monthPicker.value] = editor.value;
-        set(dbRef, masterData).then(() => statusTag.innerText = "Saved");
+        set(dbRef, masterData).then(() => {
+            statusTag.innerText = "Saved";
+        });
     }
 
     function renderGraph() {
@@ -173,6 +176,7 @@
         timeline.innerHTML = '';
         timeline.style.width = (daysInView * dayWidth) + "px";
 
+        // Draw Date Headers
         for (let i = 1; i <= daysInView; i++) {
             const isToday = (viewMonthIdx === realMonth && i === realDay);
             const lbl = document.createElement('div');
@@ -214,6 +218,7 @@
                     const viewMonthInt = parseInt(monthPicker.value);
                     const originMonthInt = parseInt(monthKey);
 
+                    // LOGIC HANDLER
                     if (op === '=') {
                         if (viewMonthInt === originMonthInt) {
                             left = day; right = day; showL = true; showR = true; shouldShow = true;
@@ -229,6 +234,7 @@
                     }
 
                     if (shouldShow) {
+                        // Queue lines for de-duplicated drawing
                         if (showL) vLinesToDraw[(left - 1) * dayWidth] = color;
                         if (showR) vLinesToDraw[right * dayWidth] = color;
                         drawBar(name, comment, left, right, yPos, color, showL, showR);
@@ -237,6 +243,7 @@
             });
         });
 
+        // Draw Lines once (No Glow)
         Object.keys(vLinesToDraw).forEach(x => {
             const line = document.createElement('div');
             line.className = 'v-line';
@@ -257,6 +264,49 @@
         bar.style.backgroundColor = color + "15"; 
         bar.style.color = color;
         bar.style.borderLeft = showL ? `2px solid ${color}` : "none";
-        bar.style.borderRight = showR ?
+        bar.style.borderRight = showR ? `2px solid ${color}` : "none";
+
+        const group = document.createElement('div');
+        group.className = 'clamped-group';
+        group.innerHTML = `<span class="subject-name">${name.toUpperCase()}</span>`;
+        if (comment) group.innerHTML += `<span class="comment-text">${comment}</span>`;
+
+        bar.appendChild(group);
+        timeline.appendChild(bar);
+    }
+
+    // EVENT LISTENERS
+    editor.addEventListener('input', saveToCloud);
+    monthPicker.addEventListener('change', renderGraph);
+
+    document.getElementById('today-btn').onclick = () => {
+        monthPicker.value = realMonth;
+        renderGraph();
+        viewport.scrollLeft = (realDay - 1) * dayWidth - (viewport.clientWidth / 2) + (dayWidth / 2);
+    };
+
+    viewport.addEventListener('wheel', (e) => {
+        if (e.deltaY !== 0) { 
+            e.preventDefault(); 
+            viewport.scrollLeft += e.deltaY; 
+        }
+    }, { passive: false });
+
+    let isDown = false; let startX; let scrollLeft;
+    viewport.addEventListener('mousedown', (e) => {
+        isDown = true; viewport.style.cursor = 'grabbing';
+        startX = e.pageX - viewport.offsetLeft; scrollLeft = viewport.scrollLeft;
+    });
+    viewport.addEventListener('mouseup', () => { isDown = false; viewport.style.cursor = 'grab'; });
+    viewport.addEventListener('mouseleave', () => { isDown = false; viewport.style.cursor = 'grab'; });
+    viewport.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        const x = e.pageX - viewport.offsetLeft;
+        const walk = (x - startX) * 2;
+        viewport.scrollLeft = scrollLeft - walk;
+    });
+
+    renderGraph();
+</script>
 </body>
 </html>
