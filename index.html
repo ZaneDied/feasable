@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #1e293b;
+            --grid: rgba(255, 255, 255, 0.08);
+            --day-width: 140px;
+            --sidebar-width: 350px;
+            --accent: #38bdf8;
+            --today-color: #ef4444;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg);
+            font-family: 'Fira Code', monospace;
+            display: flex; height: 100vh; overflow: hidden; color: #f8fafc;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--panel);
+            border-right: 2px solid #334155;
+            display: flex; flex-direction: column; z-index: 1000;
+        }
+
+        .month-selector {
+            padding: 20px; background: #111827; border-bottom: 1px solid #334155;
+            display: flex; flex-direction: column; gap: 12px;
+        }
+
+        select, .today-btn {
+            background: var(--bg); color: var(--accent); border: 1px solid #334155;
+            padding: 12px; border-radius: 6px; font-weight: bold; outline: none;
+            cursor: pointer; transition: all 0.2s; font-size: 11px;
+        }
+
+        .today-btn { background: #334155; color: white; border: none; }
+        .today-btn:hover { background: #475569; }
+
+        .status-tag {
+            font-size: 9px; color: #4ade80; text-align: center; margin-top: 5px;
+            letter-spacing: 1px; text-transform: uppercase; font-weight: bold;
+        }
+
+        #expression-editor {
+            flex-grow: 1; background: transparent; color: #f8fafc;
+            border: none; padding: 20px; font-size: 14px; line-height: 1.6;
+            resize: none; outline: none;
+        }
+
+        /* GRAPH AREA */
+        .main-content {
+            flex-grow: 1; position: relative; overflow-x: auto; overflow-y: hidden;
+            cursor: grab; background-image: linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+            background-size: var(--day-width) 100%;
+            scrollbar-width: none;
+        }
+        .main-content::-webkit-scrollbar { display: none; }
+        .timeline-content { height: 100%; position: relative; }
+
+        .date-label {
+            position: absolute; top: 0; height: 50px; font-size: 11px; color: #64748b;
+            width: var(--day-width); display: flex; align-items: center; justify-content: center;
+            z-index: 5; border-bottom: 1px solid var(--grid);
+        }
+
+        .today-marker-line {
+            position: absolute; top: 0; bottom: 0; width: 2px;
+            background: var(--today-color); box-shadow: 0 0 15px var(--today-color);
+            z-index: 60; pointer-events: none;
+        }
+
+        .today-label-active { color: #fff !important; background: var(--today-color); font-weight: 900; }
+
+        .h-zone { position: absolute; height: 46px; z-index: 20; border-radius: 6px; display: flex; align-items: center; }
+        .clamped-group {
+            position: sticky; left: 20px; padding: 6px 14px; display: flex; flex-direction: column;
+            background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); border-radius: 8px;
+            margin-left: 5px; pointer-events: none; z-index: 50; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        .subject-name { font-weight: 900; font-size: 12px; letter-spacing: 0.5px; }
+        .comment-text { font-weight: 400; font-size: 10px; opacity: 0.7; color: #fff; white-space: nowrap; margin-top: 2px; }
+        .v-line { position: absolute; top: 0; bottom: 0; width: 2px; z-index: 10; box-shadow: 0 0 10px currentColor; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="month-selector">
+            <label style="font-size: 10px; color: #64748b; font-weight: bold;">CLOUD CONTEXT</label>
+            <select id="month-picker"></select>
+            <button class="today-btn" id="today-btn">JUMP TO TODAY</button>
+            <div class="status-tag" id="status">Syncing...</div>
+        </div>
+        <textarea id="expression-editor" spellcheck="false" placeholder="{subject >= day, comment}"></textarea>
+    </div>
+
+    <div class="main-content" id="viewport">
+        <div class="timeline-content" id="timeline"></div>
+    </div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAJ5BiW7eaNrS2JdWVoxoPqKBODllPEUsU",
+        authDomain: "fisable-9095d.firebaseapp.com",
+        databaseURL: "https://fisable-9095d-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "fisable-9095d",
+        storageBucket: "fisable-9095d.firebasestorage.app",
+        messagingSenderId: "16254478711",
+        appId: "1:16254478711:web:85270628ab9a0aa932d972"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dbRef = ref(db, 'constraints');
+
+    const editor = document.getElementById('expression-editor');
+    const timeline = document.getElementById('timeline');
+    const viewport = document.getElementById('viewport');
+    const monthPicker = document.getElementById('month-picker');
+    const statusTag = document.getElementById('status');
+    
+    const dayWidth = 140;
+    const realMonth = 2; 
+    const realDay = 17;
+    
+    // Default data so it's not empty on first run
+    let masterData = {
+        "2": "{physics >= 3, cloud connected}\n{math <= 25, sync active}"
+    };
+
+    const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const COLORS = ['#38bdf8', '#f472b6', '#fbbf24', '#a855f7', '#4ade80'];
+
+    MONTHS.forEach((m, i) => {
+        const opt = document.createElement('option');
+        opt.value = i; opt.innerText = m;
+        if(i === realMonth) opt.selected = true;
+        monthPicker.appendChild(opt);
+    });
+
+    // --- UPDATED SYNC LOGIC ---
+    onValue(dbRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data && Object.keys(data).length > 0) {
+            masterData = data;
+            statusTag.innerText = "Cloud Synced";
+            renderGraph();
+        } else {
+            // If cloud is empty, push our default data to it
+            set(dbRef, masterData);
+            renderGraph();
+        }
+    }, (error) => {
+        console.error(error);
+        statusTag.innerText = "Permission Denied";
+        statusTag.style.color = "#ef4444";
+    });
+
+    function saveToCloud() {
+        masterData[monthPicker.value] = editor.value;
+        set(dbRef, masterData).then(() => {
+            statusTag.innerText = "Saved";
+            statusTag.style.color = "#4ade80";
+        }).catch((err) => {
+            statusTag.innerText = "Error Saving";
+            statusTag.style.color = "#ef4444";
+        });
+    }
+
+    function renderGraph() {
+        const viewMonthIdx = parseInt(monthPicker.value);
+        const daysInView = new Date(2026, viewMonthIdx + 1, 0).getDate();
+        editor.value = masterData[viewMonthIdx] || "";
+        timeline.innerHTML = '';
+        timeline.style.width = (daysInView * dayWidth) + "px";
+
+        // Draw Dates
+        for (let i = 1; i <= daysInView; i++) {
+            const isToday = (viewMonthIdx === realMonth && i === realDay);
+            const lbl = document.createElement('div');
+            lbl.className = 'date-label' + (isToday ? ' today-label-active' : '');
+            lbl.style.left = ((i-1) * dayWidth) + "px";
+            lbl.innerText = i;
+            timeline.appendChild(lbl);
+            if (isToday) {
+                const laser = document.createElement('div');
+                laser.className = 'today-marker-line';
+                laser.style.left = ((i-1) * dayWidth) + "px";
+                timeline.appendChild(laser);
+            }
+        }
+
+        let globalIndex = 0;
+        // Ensure keys exist and parse them
+        Object.keys(masterData).sort().forEach(monthKey => {
+            const content = masterData[monthKey];
+            const matches = content.match(/\{.*?\}/g) || [];
+
+            matches.forEach((raw) => {
+                const fullContent = raw.replace(/\{|\}/g, '').trim();
+                const [logicPart, ...commentParts] = fullContent.split(',');
+                const comment = commentParts.join(',').trim();
+                const logic = logicPart.trim();
+                const color = COLORS[globalIndex % COLORS.length];
+                const yPos = 90 + (globalIndex * 60);
+                globalIndex++;
+
+                const simpleMatch = logic.match(/^([a-zA-Z]+)\s*(<=|>=|=)\s*(\d+)$/);
+                if (simpleMatch) {
+                    const [_, name, op, val] = simpleMatch;
+                    const day = parseInt(val);
+                    let shouldShow = false;
+                    let left = 1, right = daysInView, showL = false, showR = false;
+
+                    const viewMonthInt = parseInt(monthPicker.value);
+                    const originMonthInt = parseInt(monthKey);
+
+                    if (op === '>=') {
+                        if (viewMonthInt === originMonthInt) { left = day; showL = true; shouldShow = true; }
+                        else if (viewMonthInt > originMonthInt) { shouldShow = true; }
+                    } else if (op === '<=') {
+                        if (viewMonthInt === originMonthInt) { right = day; showR = true; shouldShow = true; }
+                        else if (viewMonthInt < originMonthInt) { shouldShow = true; }
+                    }
+                    if (shouldShow) drawBar(name, comment, left, right, yPos, color, showL, showR);
+                }
+            });
+        });
+    }
+
+    function drawBar(name, comment, start, end, y, color, showL, showR) {
+        const xStart = (start - 1) * dayWidth;
+        const xEnd = (end - 1) * dayWidth;
+        const barWidth = (xEnd - xStart + dayWidth);
+        
+        if (showL) createLine(xStart, color);
+        if (showR) createLine(xEnd + dayWidth, color);
+
+        const bar = document.createElement('div');
+        bar.className = 'h-zone';
+        bar.style.top = y + "px"; 
+        bar.style.left = xStart + "px";
+        bar.style.width = barWidth + "px";
+        bar.style.backgroundColor = color + "20"; 
+        bar.style.color = color;
+        bar.style.borderLeft = showL ? `3px solid ${color}` : "none";
+        bar.style.borderRight = showR ? `3px solid ${color}` : "none";
+
+        const group = document.createElement('div');
+        group.className = 'clamped-group';
+        group.innerHTML = `<span class="subject-name">${name.toUpperCase()}</span>`;
+        if (comment) group.innerHTML += `<span class="comment-text">${comment}</span>`;
+
+        bar.appendChild(group);
+        timeline.appendChild(bar);
+    }
+
+    function createLine(x, color) {
+        const line = document.createElement('div');
+        line.className = 'v-line';
+        line.style.left = x + "px"; line.style.backgroundColor = color;
+        line.style.color = color; timeline.appendChild(line);
+    }
+
+    editor.addEventListener('input', saveToCloud);
+    monthPicker.addEventListener('change', renderGraph);
+
+    document.getElementById('today-btn').onclick = () => {
+        monthPicker.value = realMonth;
+        renderGraph();
+        viewport.scrollLeft = (realDay - 1) * dayWidth - (viewport.clientWidth / 2) + (dayWidth / 2);
+    };
+
+    viewport.addEventListener('wheel', (e) => {
+        if (e.deltaY !== 0) { e.preventDefault(); viewport.scrollLeft += e.deltaY; }
+    }, { passive: false });
+
+    let isDown = false; let startX; let scrollLeft;
+    viewport.addEventListener('mousedown', (e) => {
+        isDown = true; startX = e.pageX - viewport.offsetLeft; scrollLeft = viewport.scrollLeft;
+    });
+    viewport.addEventListener('mouseup', () => isDown = false);
+    viewport.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        const x = e.pageX - viewport.offsetLeft;
+        const walk = (x - startX) * 2;
+        viewport.scrollLeft = scrollLeft - walk;
+    });
+</script> 
+</body>
+</html>
