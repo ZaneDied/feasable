@@ -25,10 +25,7 @@
         /* --- AESTHETIC SCROLLBARS --- */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { 
-            background: rgba(255, 255, 255, 0.1); 
-            border-radius: 10px; 
-        }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
         body {
@@ -38,7 +35,7 @@
             display: flex; height: 100vh; overflow: hidden; color: #f8fafc;
         }
 
-        /* --- SIDEBAR (FULL SCREEN ON MOBILE) --- */
+        /* --- SIDEBAR --- */
         .sidebar {
             width: var(--sidebar-width);
             min-width: 150px;
@@ -53,34 +50,27 @@
 
         .sidebar.collapsed {
             margin-left: calc(var(--sidebar-width) * -1);
-            transform: translateX(0);
         }
 
-        /* ENHANCED RESIZER HITBOX */
-        .resizer {
-            width: var(--resizer-w);
-            cursor: col-resize;
-            background: rgba(255, 255, 255, 0.05);
-            z-index: 1001;
-            position: relative;
-        }
-        .resizer::after {
-            content: "";
-            position: absolute;
-            top: 0; left: -10px;
-            width: 24px; height: 100%;
-            background: transparent;
-        }
-        .resizer:hover, .resizing .resizer { background: var(--accent); }
-
+        /* THE TOGGLE BUTTON (NOW INDEPENDENT) */
         .toggle-btn {
-            position: absolute; right: -40px; top: 20px;
-            width: 40px; height: 40px; background: var(--accent);
+            position: fixed; 
+            left: var(--sidebar-width); 
+            top: 20px;
+            width: 40px; height: 40px; 
+            background: var(--accent);
             border: none; color: var(--bg); cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            border-radius: 0 8px 8px 0; z-index: 2100;
+            border-radius: 0 8px 8px 0; 
+            z-index: 3000;
             font-weight: bold; font-size: 18px;
+            transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s;
             box-shadow: 4px 0 10px rgba(0,0,0,0.3);
+        }
+        
+        /* Position button when sidebar is hidden */
+        .sidebar.collapsed + .resizer + .main-content + .toggle-btn {
+            left: 0;
         }
 
         .month-selector {
@@ -110,7 +100,6 @@
         
         .timeline-content { min-height: 100%; position: relative; padding-top: 50px; padding-bottom: 100px; }
 
-        /* STICKY DATE HEADER */
         .date-header-container {
             position: sticky; top: 0; left: 0; height: 50px; 
             z-index: 100; background: var(--bg);
@@ -127,10 +116,9 @@
             position: absolute; top: 0; bottom: 0; width: 2px;
             background: var(--today-color); z-index: 60; pointer-events: none;
         }
-        .today-label-active { color: #fff !important; background: var(--today-color); font-weight: 900; border-radius: 0 0 4px 4px; }
+        .today-label-active { color: #fff !important; background: var(--today-color); font-weight: 900; }
 
         .h-zone { position: absolute; height: 40px; z-index: 20; border-radius: 4px; display: flex; align-items: center; pointer-events: none; }
-        
         .clamped-group {
             position: sticky; left: 10px; padding: 4px 8px; display: flex; flex-direction: column;
             background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); border-radius: 6px;
@@ -138,46 +126,38 @@
         }
         .subject-name { font-weight: 900; font-size: 10px; }
         .comment-text { font-size: 9px; opacity: 0.8; white-space: nowrap; }
-        
         .v-line { position: absolute; top: 0; bottom: 0; width: 1px; z-index: 10; opacity: 0.4; pointer-events: none; }
 
-        /* --- MOBILE MODE: FULL SCREEN INPUT --- */
+        .resizer { width: var(--resizer-w); cursor: col-resize; background: rgba(255, 255, 255, 0.05); z-index: 1001; position: relative; }
+        .resizer::after { content: ""; position: absolute; top: 0; left: -10px; width: 24px; height: 100%; background: transparent; }
+
+        /* --- MOBILE MODE --- */
         @media (max-width: 768px) {
             :root { --day-width: 85px; }
             .sidebar { 
-                position: fixed; 
-                width: 100vw !important; 
-                height: 100vh; 
-                left: 0; 
-                top: 0;
-                margin-left: 0;
-                transform: translateX(-100%);
-                max-width: none;
+                position: fixed; width: 100vw !important; height: 100vh; 
+                left: 0; top: 0; transform: translateX(-100%); max-width: none;
             }
             .sidebar.collapsed { transform: translateX(-100%); margin-left: 0; }
             .sidebar:not(.collapsed) { transform: translateX(0); }
             
             .resizer { display: none; }
             
+            /* MOBILE FLOATING ACTION BUTTON (FAB) */
             .toggle-btn {
                 position: fixed;
-                right: 20px;
-                bottom: 20px;
-                top: auto;
-                left: auto;
-                width: 60px;
-                height: 60px;
+                right: 20px; bottom: 20px; 
+                left: auto !important; top: auto !important;
+                width: 65px; height: 65px;
                 border-radius: 50%;
-                font-size: 24px;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-                z-index: 3000;
+                font-size: 28px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+                z-index: 9999; /* Highest layer */
             }
 
-            /* Make it clear how to close the editor on mobile */
-            .sidebar:not(.collapsed) .toggle-btn {
-                right: 20px;
-                bottom: 20px;
-                background: #ef4444; /* Red for 'Close' */
+            .sidebar:not(.collapsed) ~ .toggle-btn {
+                background: #ef4444; /* Red button when editor is open */
+                color: white;
             }
         }
     </style>
@@ -185,7 +165,6 @@
 <body id="app-body">
 
     <div class="sidebar collapsed" id="sidebar">
-        <button class="toggle-btn" id="toggle-sidebar">✎</button>
         <div class="month-selector">
             <label style="font-size: 9px; color: #64748b; font-weight: bold; letter-spacing: 1px;">DATABASE CONTEXT</label>
             <select id="month-picker"></select>
@@ -201,6 +180,8 @@
         <div class="date-header-container" id="header-row"></div>
         <div class="timeline-content" id="timeline"></div>
     </div>
+
+    <button class="toggle-btn" id="toggle-sidebar">✎</button>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -297,6 +278,8 @@
             toggleBtn.innerText = isCollapsed ? '✎' : '✕';
         } else {
             toggleBtn.innerText = isCollapsed ? '▶' : '◀';
+            // Update button position for desktop
+            toggleBtn.style.left = isCollapsed ? '0px' : 'var(--sidebar-width)';
         }
     };
 
