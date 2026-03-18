@@ -16,16 +16,15 @@
             --resizer-w: 4px;
         }
 
-        /* Prevent highlighting while interacting */
         .dragging, .resizing {
             user-select: none !important;
             cursor: grabbing !important;
         }
 
-        /* --- AESTHETIC SCROLLBARS --- */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        /* --- LEFT-SIDE SCROLLBAR STYLING --- */
+        ::-webkit-scrollbar { width: 10px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; border: 2px solid var(--panel); }
         ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
         body {
@@ -35,62 +34,62 @@
             display: flex; height: 100vh; overflow: hidden; color: #f8fafc;
         }
 
-        /* --- SIDEBAR --- */
+        /* --- SIDEBAR: FORCING SCROLLBAR TO LEFT --- */
         .sidebar {
             width: var(--sidebar-width);
             min-width: 150px;
             max-width: 600px;
             background-color: var(--panel);
-            display: flex; flex-direction: column; 
             z-index: 2000; flex-shrink: 0;
             position: relative;
             transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.4s;
             box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+            
+            /* The Trick: Flip the direction for the scrollbar, then flip it back for content */
+            direction: rtl; 
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .sidebar.collapsed {
             margin-left: calc(var(--sidebar-width) * -1);
         }
 
-        /* THE TOGGLE BUTTON (NOW INDEPENDENT) */
-        .toggle-btn {
-            position: fixed; 
-            left: var(--sidebar-width); 
-            top: 20px;
-            width: 40px; height: 40px; 
-            background: var(--accent);
-            border: none; color: var(--bg); cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            border-radius: 0 8px 8px 0; 
-            z-index: 3000;
-            font-weight: bold; font-size: 18px;
-            transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s;
-            box-shadow: 4px 0 10px rgba(0,0,0,0.3);
-        }
-        
-        /* Position button when sidebar is hidden */
-        .sidebar.collapsed + .resizer + .main-content + .toggle-btn {
-            left: 0;
+        /* Container to flip text back to normal (Left-to-Right) */
+        .sidebar-content-wrapper {
+            direction: ltr;
+            display: flex;
+            flex-direction: column;
+            min-height: 100%;
+            width: 100%;
         }
 
         .month-selector {
             padding: 20px; background: #111827; border-bottom: 1px solid #334155;
-            display: flex; flex-direction: column; gap: 10px;
+            display: flex; flex-direction: column; gap: 12px;
+            flex-shrink: 0;
         }
+        
+        .selector-row { display: flex; gap: 8px; width: 100%; }
 
         select, .today-btn {
             background: var(--bg); color: var(--accent); border: 1px solid #334155;
-            padding: 12px; border-radius: 6px; font-weight: bold; font-size: 13px;
-            outline: none; cursor: pointer;
+            padding: 10px; border-radius: 6px; font-weight: bold; font-size: 11px;
+            outline: none; cursor: pointer; flex: 1;
         }
 
+        /* THE EDITOR: No internal scrollbar, grows with content */
         #expression-editor {
-            flex-grow: 1; background: transparent; color: #f8fafc;
+            flex-grow: 1; 
+            background: transparent; color: #f8fafc;
             border: none; padding: 20px; font-size: 16px; line-height: 1.6;
             resize: none; outline: none;
+            overflow: hidden; /* Prevent internal scrollbar collision */
+            width: 100%;
+            box-sizing: border-box;
         }
 
-        /* --- TIMELINE AREA --- */
+        /* --- TIMELINE --- */
         .main-content {
             flex-grow: 1; position: relative; overflow: auto;
             background-image: linear-gradient(90deg, var(--grid) 1px, transparent 1px);
@@ -98,25 +97,26 @@
             cursor: grab;
         }
         
-        .timeline-content { min-height: 100%; position: relative; padding-top: 50px; padding-bottom: 100px; }
+        .timeline-content { min-height: 100%; position: relative; padding-top: 60px; padding-bottom: 100px; }
 
         .date-header-container {
-            position: sticky; top: 0; left: 0; height: 50px; 
+            position: sticky; top: 0; left: 0; height: 60px; 
             z-index: 100; background: var(--bg);
             border-bottom: 1px solid var(--grid);
         }
 
         .date-label {
-            position: absolute; top: 0; height: 50px; font-size: 11px; color: #64748b;
-            width: var(--day-width); display: flex; align-items: center; justify-content: center;
-            pointer-events: none;
+            position: absolute; top: 0; height: 60px; color: #64748b;
+            width: var(--day-width); display: flex; flex-direction: column; 
+            align-items: center; justify-content: center;
+            pointer-events: none; line-height: 1.2;
         }
 
         .today-marker-line {
             position: absolute; top: 0; bottom: 0; width: 2px;
             background: var(--today-color); z-index: 60; pointer-events: none;
         }
-        .today-label-active { color: #fff !important; background: var(--today-color); font-weight: 900; }
+        .today-label-active { color: #fff !important; background: var(--today-color); border-radius: 0 0 6px 6px; }
 
         .h-zone { position: absolute; height: 40px; z-index: 20; border-radius: 4px; display: flex; align-items: center; pointer-events: none; }
         .clamped-group {
@@ -126,52 +126,51 @@
         }
         .subject-name { font-weight: 900; font-size: 10px; }
         .comment-text { font-size: 9px; opacity: 0.8; white-space: nowrap; }
-        .v-line { position: absolute; top: 0; bottom: 0; width: 1px; z-index: 10; opacity: 0.4; pointer-events: none; }
 
+        .toggle-btn {
+            position: fixed; left: var(--sidebar-width); top: 20px;
+            width: 40px; height: 40px; background: var(--accent);
+            border: none; color: var(--bg); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 0 8px 8px 0; z-index: 3000;
+            font-weight: bold; font-size: 18px;
+            transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 10px rgba(0,0,0,0.3);
+        }
+        
+        .sidebar.collapsed + .resizer + .main-content + .toggle-btn { left: 0; }
+        
         .resizer { width: var(--resizer-w); cursor: col-resize; background: rgba(255, 255, 255, 0.05); z-index: 1001; position: relative; }
         .resizer::after { content: ""; position: absolute; top: 0; left: -10px; width: 24px; height: 100%; background: transparent; }
 
-        /* --- MOBILE MODE --- */
         @media (max-width: 768px) {
-            :root { --day-width: 85px; }
+            :root { --day-width: 80px; }
             .sidebar { 
                 position: fixed; width: 100vw !important; height: 100vh; 
-                left: 0; top: 0; transform: translateX(-100%); max-width: none;
+                left: 0; top: 0; transform: translateX(-100%); max-width: none; 
+                direction: ltr; /* Normal scrolling for mobile full-screen */
             }
-            .sidebar.collapsed { transform: translateX(-100%); margin-left: 0; }
+            .sidebar-content-wrapper { direction: ltr; }
             .sidebar:not(.collapsed) { transform: translateX(0); }
-            
             .resizer { display: none; }
-            
-            /* MOBILE FLOATING ACTION BUTTON (FAB) */
-            .toggle-btn {
-                position: fixed;
-                right: 20px; bottom: 20px; 
-                left: auto !important; top: auto !important;
-                width: 65px; height: 65px;
-                border-radius: 50%;
-                font-size: 28px;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.6);
-                z-index: 9999; /* Highest layer */
-            }
-
-            .sidebar:not(.collapsed) ~ .toggle-btn {
-                background: #ef4444; /* Red button when editor is open */
-                color: white;
-            }
+            .toggle-btn { position: fixed; right: 20px; bottom: 20px; left: auto !important; top: auto !important; width: 65px; height: 65px; border-radius: 50%; font-size: 28px; z-index: 9999; }
         }
     </style>
 </head>
 <body id="app-body">
 
     <div class="sidebar collapsed" id="sidebar">
-        <div class="month-selector">
-            <label style="font-size: 9px; color: #64748b; font-weight: bold; letter-spacing: 1px;">DATABASE CONTEXT</label>
-            <select id="month-picker"></select>
-            <button class="today-btn" id="today-btn">JUMP TO TODAY</button>
-            <div id="status" style="font-size: 9px; color: #4ade80; text-align: center; font-weight: bold;">SYNCED</div>
+        <div class="sidebar-content-wrapper">
+            <div class="month-selector">
+                <label style="font-size: 9px; color: #64748b; font-weight: bold; letter-spacing: 1px;">DATABASE CONTEXT</label>
+                <div class="selector-row">
+                    <select id="month-picker"></select>
+                    <button class="today-btn" id="today-btn">TODAY</button>
+                </div>
+                <div id="status" style="font-size: 9px; color: #4ade80; text-align: center; font-weight: bold;">SYNCED</div>
+            </div>
+            <textarea id="expression-editor" spellcheck="false" placeholder="{10 <= physics <= 20, comment}"></textarea>
         </div>
-        <textarea id="expression-editor" spellcheck="false" placeholder="{10 <= physics <= 20, comment}"></textarea>
     </div>
 
     <div class="resizer" id="resizer"></div>
@@ -225,70 +224,52 @@
         monthPicker.appendChild(opt);
     });
 
-    // --- RESIZER ---
-    let isResizing = false;
-    resizer.addEventListener('mousedown', (e) => {
-        isResizing = true;
-        document.body.classList.add('resizing');
-        e.preventDefault();
-    });
+    // --- AUTO-RESIZE TEXTAREA ---
+    function autoResize() {
+        editor.style.height = 'auto';
+        editor.style.height = (editor.scrollHeight) + 'px';
+    }
+    editor.addEventListener('input', autoResize);
 
-    // --- PAN-TO-SCROLL ---
-    let isPanning = false;
-    let startX, startY, scrollLeft, scrollTop;
+    // --- INTERACTIONS ---
+    let isResizing = false, isPanning = false, startX, startY, scrollLeft, scrollTop;
 
+    resizer.addEventListener('mousedown', (e) => { isResizing = true; document.body.classList.add('resizing'); e.preventDefault(); });
     viewport.addEventListener('mousedown', (e) => {
         if (e.target.closest('.clamped-group')) return;
-        isPanning = true;
-        document.body.classList.add('dragging');
-        startX = e.pageX - viewport.offsetLeft;
-        startY = e.pageY - viewport.offsetTop;
-        scrollLeft = viewport.scrollLeft;
-        scrollTop = viewport.scrollTop;
+        isPanning = true; document.body.classList.add('dragging');
+        startX = e.pageX - viewport.offsetLeft; startY = e.pageY - viewport.offsetTop;
+        scrollLeft = viewport.scrollLeft; scrollTop = viewport.scrollTop;
         e.preventDefault();
     });
 
     document.addEventListener('mousemove', (e) => {
         if (isResizing) {
             let newWidth = e.clientX;
-            if (newWidth > 150 && newWidth < 600) {
-                document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px');
-            }
+            if (newWidth > 150 && newWidth < 600) document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px');
         }
         if (isPanning) {
-            const walkX = (e.pageX - viewport.offsetLeft - startX);
-            const walkY = (e.pageY - viewport.offsetTop - startY);
-            viewport.scrollLeft = scrollLeft - walkX;
-            viewport.scrollTop = scrollTop - walkY;
+            viewport.scrollLeft = scrollLeft - (e.pageX - viewport.offsetLeft - startX);
+            viewport.scrollTop = scrollTop - (e.pageY - viewport.offsetTop - startY);
         }
     });
 
-    document.addEventListener('mouseup', () => {
-        isResizing = false;
-        isPanning = false;
-        document.body.classList.remove('resizing', 'dragging');
-    });
+    document.addEventListener('mouseup', () => { isResizing = false; isPanning = false; document.body.classList.remove('resizing', 'dragging'); });
 
-    // --- TOGGLE ---
     toggleBtn.onclick = () => {
         sidebar.classList.toggle('collapsed');
         const isCollapsed = sidebar.classList.contains('collapsed');
-        
-        if(window.innerWidth <= 768) {
-            toggleBtn.innerText = isCollapsed ? '✎' : '✕';
-        } else {
-            toggleBtn.innerText = isCollapsed ? '▶' : '◀';
-            // Update button position for desktop
-            toggleBtn.style.left = isCollapsed ? '0px' : 'var(--sidebar-width)';
-        }
+        toggleBtn.innerText = isCollapsed ? '✎' : (window.innerWidth <= 768 ? '✕' : '◀');
+        if (window.innerWidth > 768) toggleBtn.style.left = isCollapsed ? '0px' : 'var(--sidebar-width)';
     };
 
     // --- DATA ---
     onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
-        if (data) {
-            masterData = data;
-            renderGraph();
+        if (data) { 
+            masterData = data; 
+            renderGraph(); 
+            setTimeout(autoResize, 50); // Resize after content loads
         }
     });
 
@@ -298,25 +279,26 @@
     }
 
     function renderGraph() {
-        const dw = window.innerWidth <= 768 ? 85 : 140;
+        const dw = window.innerWidth <= 768 ? 80 : 140;
         document.documentElement.style.setProperty('--day-width', dw + 'px');
         const viewMonthIdx = parseInt(monthPicker.value);
         const daysInView = new Date(realYear, viewMonthIdx + 1, 0).getDate();
         
         editor.value = masterData[viewMonthIdx] || "";
-        timeline.innerHTML = '';
-        headerRow.innerHTML = '';
-        
+        timeline.innerHTML = ''; headerRow.innerHTML = '';
         const totalWidth = daysInView * dw;
         timeline.style.width = totalWidth + "px";
         headerRow.style.width = totalWidth + "px";
 
         for (let i = 1; i <= daysInView; i++) {
+            const dateObj = new Date(realYear, viewMonthIdx, i);
+            const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
             const isToday = (viewMonthIdx === realMonth && i === realDay);
+            
             const lbl = document.createElement('div');
             lbl.className = 'date-label' + (isToday ? ' today-label-active' : '');
             lbl.style.left = ((i-1) * dw) + "px";
-            lbl.innerText = i;
+            lbl.innerHTML = `<span style="font-size: 14px; font-weight:900;">${i}</span><span style="font-size: 9px; opacity:0.6;">${dayName.toUpperCase()}</span>`;
             headerRow.appendChild(lbl);
             
             if (isToday) {
@@ -356,9 +338,7 @@
                     let min = null, max = null;
                     if (o1.includes('<')) min = o1 === '<' ? v1 + 1 : v1; else max = o1 === '>' ? v1 - 1 : v1;
                     if (o2.includes('<')) max = o2 === '<' ? v2 - 1 : v2; else min = o2 === '>' ? v2 + 1 : v2;
-                    if (viewMonthInt === originMonthInt && min <= max) {
-                        left = min; right = max; showL = showR = shouldShow = true;
-                    }
+                    if (viewMonthInt === originMonthInt && min <= max) { left = min; right = max; showL = showR = shouldShow = true; }
                 } else if (varFirstMatch || numFirstMatch) {
                     let op, val;
                     if (varFirstMatch) { name = varFirstMatch[1]; op = varFirstMatch[2]; val = parseInt(varFirstMatch[3]); }
@@ -399,14 +379,14 @@
         timeline.appendChild(bar);
     }
 
-    editor.oninput = saveToCloud;
-    monthPicker.onchange = renderGraph;
+    editor.oninput = () => { saveToCloud(); autoResize(); };
+    monthPicker.onchange = () => { renderGraph(); setTimeout(autoResize, 50); };
     window.onresize = renderGraph;
 
     document.getElementById('today-btn').onclick = () => {
         monthPicker.value = realMonth;
         renderGraph();
-        const dw = window.innerWidth <= 768 ? 85 : 140;
+        const dw = window.innerWidth <= 768 ? 80 : 140;
         viewport.scrollLeft = (realDay - 1) * dw - (viewport.clientWidth / 2) + (dw / 2);
     };
 
