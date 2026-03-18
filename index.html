@@ -19,186 +19,182 @@
             --day-width: 140px;
             --sidebar-width: 320px;
             --accent: #38bdf8;
-            --today-color: #ef4444;
-            --resizer-w: 4px;
+            --log-accent: #fbbf24;
+            --cal-accent: #a855f7;
+            --today-color: #ef4444; /* Red for Today markers */
             --font-hand: 'Architects Daughter', cursive;
             --font-code: 'Fira Code', monospace;
-            
-            /* iOS Safe Area Constants */
             --safe-top: env(safe-area-inset-top);
             --safe-bottom: env(safe-area-inset-bottom);
         }
 
-        .dragging, .resizing {
-            user-select: none !important;
-            cursor: grabbing !important;
-        }
+        body.resizing { cursor: col-resize !important; user-select: none !important; }
+        body.dragging { cursor: grabbing !important; user-select: none !important; }
 
-        /* --- LEFT-SIDE SCROLLBAR --- */
         ::-webkit-scrollbar { width: 10px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; border: 2px solid var(--panel); }
         ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
         body {
-            margin: 0; padding: 0;
-            background-color: var(--bg);
-            font-family: var(--font-code);
-            display: flex; height: 100vh; overflow: hidden; color: #f8fafc;
-            /* Prevent bouncing on iOS */
-            position: fixed; 
-            width: 100%;
+            margin: 0; padding: 0; background-color: var(--bg); font-family: var(--font-code);
+            display: flex; height: 100vh; overflow: hidden; color: #f8fafc; position: fixed; width: 100%;
         }
 
         /* --- SIDEBAR --- */
         .sidebar {
-            width: var(--sidebar-width);
-            min-width: 150px; max-width: 600px;
-            background-color: var(--panel);
-            z-index: 2000; flex-shrink: 0;
-            position: relative;
+            width: var(--sidebar-width); min-width: 180px; max-width: 80vw;
+            background-color: var(--panel); z-index: 2000; flex-shrink: 0; position: relative;
             transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.4s;
-            box-shadow: 10px 0 30px rgba(0,0,0,0.5);
-            direction: rtl; 
-            overflow-y: auto; overflow-x: hidden;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.5); direction: rtl; overflow-y: auto; overflow-x: hidden;
         }
-
+        body.resizing .sidebar { transition: none !important; }
         .sidebar.collapsed { margin-left: calc(var(--sidebar-width) * -1); }
+        .sidebar-content-wrapper { direction: ltr; display: flex; flex-direction: column; min-height: 100%; width: 100%; padding-top: var(--safe-top); }
 
-        .sidebar-content-wrapper {
-            direction: ltr;
-            display: flex; flex-direction: column;
-            min-height: 100%; width: 100%;
-            padding-top: var(--safe-top); /* Avoids Notch */
-        }
+        .resizer { width: 12px; margin-left: -6px; cursor: col-resize; z-index: 2001; position: relative; display: flex; justify-content: center; }
+        .resizer-line { width: 2px; height: 100%; background: rgba(255, 255, 255, 0.1); transition: 0.2s; }
+        .resizer:hover .resizer-line, body.resizing .resizer-line { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
 
-        .month-selector {
-            padding: 20px; background: #111827; border-bottom: 1px solid #334155;
-            display: flex; flex-direction: column; gap: 12px; flex-shrink: 0;
-        }
-        
-        .selector-row { display: flex; gap: 8px; width: 100%; }
+        .context-header { padding: 20px; background: #111827; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
+        .selector-row { display: flex; gap: 8px; width: 100%; align-items: center; }
 
-        select, .today-btn {
+        select, .action-btn {
             background: var(--bg); color: var(--accent); border: 1px solid #334155;
             padding: 10px; border-radius: 6px; font-weight: bold; font-size: 11px;
-            outline: none; cursor: pointer; flex: 1; font-family: var(--font-code);
-            -webkit-appearance: none; /* Removes iOS default styling */
+            outline: none; cursor: pointer; flex: 1; font-family: var(--font-code); -webkit-appearance: none;
         }
 
-        #expression-editor {
-            flex-grow: 1; background: transparent; color: #f8fafc;
-            border: none; padding: 20px; font-size: 16px; line-height: 1.6;
-            resize: none; outline: none; overflow: hidden;
-            width: 100%; box-sizing: border-box; font-family: var(--font-code);
-            padding-bottom: calc(var(--safe-bottom) + 20px);
+        .day-stepper { display: flex; align-items: center; justify-content: space-between; background: var(--bg); border: 1px solid #334155; border-radius: 6px; flex: 0 0 100px; height: 36px; overflow: hidden; }
+        .stepper-btn { background: transparent; color: var(--accent); border: none; width: 30px; height: 100%; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .day-input { width: 40px; text-align: center; color: var(--log-accent); font-weight: bold; font-size: 14px; background: transparent; border: none; outline: none; font-family: var(--font-code); -webkit-appearance: none; margin: 0; }
+
+        .text-editor {
+            flex-grow: 1; background: transparent; color: #f8fafc; border: none; padding: 20px;
+            font-size: 16px; line-height: 1.6; resize: none; outline: none; overflow: hidden;
+            width: 100%; box-sizing: border-box; font-family: var(--font-code); padding-bottom: calc(var(--safe-bottom) + 140px); 
         }
+        #log-editor { font-family: var(--font-hand); font-size: 18px; }
 
         /* --- TIMELINE --- */
-        .date-header-container {
-            position: sticky; top: 0; left: 0; height: calc(65px + var(--safe-top)); 
-            z-index: 100; background: var(--bg);
-            border-bottom: 1px solid var(--grid);
-            display: flex; align-items: flex-end;
-        }
-
-        .date-label {
-            position: absolute; bottom: 0; height: 65px; color: #94a3b8;
-            width: var(--day-width); display: flex; flex-direction: column; 
-            align-items: center; justify-content: center;
-            pointer-events: none; line-height: 1.1;
-            font-family: var(--font-hand);
-        }
-
+        .date-header-container { position: sticky; top: 0; left: 0; height: calc(65px + var(--safe-top)); z-index: 100; background: var(--bg); border-bottom: 1px solid var(--grid); display: flex; align-items: flex-end; }
+        .date-label { position: absolute; bottom: 0; height: 65px; color: #94a3b8; width: var(--day-width); display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; line-height: 1.1; font-family: var(--font-hand); }
         .date-number { font-size: 19px; font-weight: bold; }
         .date-dayname { font-size: 10px; opacity: 0.7; letter-spacing: 1px; }
-
         .today-label-active { color: #fff !important; background: var(--today-color); border-radius: 8px 8px 0 0; }
 
-        .main-content {
-            flex-grow: 1; position: relative; overflow: auto;
-            background-image: linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-            background-size: var(--day-width) 100%;
-            cursor: grab;
-            -webkit-overflow-scrolling: touch; /* Smooth iOS scroll */
-        }
-        
-        .timeline-content { 
-            min-height: 100%; position: relative; 
-            padding-top: 0; 
-            padding-bottom: calc(100px + var(--safe-bottom)); 
-        }
-
-        .today-marker-line {
-            position: absolute; top: 0; bottom: 0; width: 2px;
-            background: var(--today-color); z-index: 60; pointer-events: none;
-        }
+        .main-content { flex-grow: 1; position: relative; overflow: auto; background-image: linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: var(--day-width) 100%; cursor: grab; -webkit-overflow-scrolling: touch; }
+        .timeline-content { min-height: 100%; position: relative; padding-bottom: calc(100px + var(--safe-bottom)); }
+        .today-marker-line { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--today-color); z-index: 60; pointer-events: none; }
 
         .h-zone { position: absolute; height: 44px; z-index: 20; border-radius: 4px; display: flex; align-items: center; pointer-events: none; }
-        .clamped-group {
-            position: sticky; left: 10px; padding: 6px 10px; display: flex; flex-direction: column;
-            background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); border-radius: 8px;
-            z-index: 50; border: 1.5px solid rgba(255,255,255,0.15);
-            font-family: var(--font-hand);
-        }
+        .clamped-group { position: sticky; left: 10px; padding: 6px 10px; display: flex; flex-direction: column; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); border-radius: 8px; z-index: 50; border: 1.5px solid rgba(255,255,255,0.15); font-family: var(--font-hand); }
         .subject-name { font-weight: bold; font-size: 13px; color: inherit; }
         .comment-text { font-size: 11px; opacity: 0.9; white-space: nowrap; margin-top: -2px; }
-
         .v-line { position: absolute; top: 0; bottom: 0; width: 1.5px; z-index: 10; opacity: 0.3; pointer-events: none; }
 
-        /* --- UI ELEMENTS --- */
-        .toggle-btn {
-            position: fixed; left: var(--sidebar-width); top: calc(20px + var(--safe-top));
-            width: 40px; height: 40px; background: var(--accent);
-            border: none; color: var(--bg); cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            border-radius: 0 8px 8px 0; z-index: 3000;
-            font-weight: bold; font-size: 18px;
-            transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 4px 0 10px rgba(0,0,0,0.3);
-        }
+        /* --- BOOKMARKS --- */
+        .bookmark-container { position: fixed; left: var(--sidebar-width); top: calc(20px + var(--safe-top)); display: flex; flex-direction: column; gap: 10px; z-index: 3000; transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        body.resizing .bookmark-container { transition: none !important; }
+        .sidebar.collapsed ~ .bookmark-container { left: 0; }
+        .toggle-btn { width: 45px; height: 45px; border: none; color: var(--bg); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 0 8px 8px 0; font-weight: bold; font-size: 18px; box-shadow: 4px 0 10px rgba(0,0,0,0.3); transition: transform 0.2s, background 0.3s; }
+        #btn-constraints { background: var(--accent); }
+        #btn-log { background: var(--log-accent); }
+        #btn-calendar { background: var(--cal-accent); }
+        .toggle-btn.active { transform: scale(1.1); z-index: 3001; }
+
+        /* --- CALENDAR MODAL --- */
+        #calendar-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px); z-index: 5000; display: none; align-items: center; justify-content: center; }
+        .cal-box { background: var(--panel); width: 320px; border-radius: 20px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); border: 1px solid rgba(255,255,255,0.1); }
+        .cal-header { background: #111827; padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+        .cal-header h3 { margin: 0; font-size: 16px; color: var(--cal-accent); letter-spacing: 1px; }
+        .cal-nav-btn { background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 18px; padding: 5px 10px; }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); padding: 15px; gap: 5px; }
+        .cal-weekday { text-align: center; font-size: 10px; color: #64748b; font-weight: bold; margin-bottom: 10px; }
+        .cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 8px; font-size: 13px; transition: 0.2s; position: relative; }
+        .cal-day:hover { background: rgba(255,255,255,0.1); }
         
-        .sidebar.collapsed + .resizer + .main-content + .toggle-btn { left: 0; }
-        .resizer { width: var(--resizer-w); cursor: col-resize; background: rgba(255, 255, 255, 0.05); z-index: 1001; position: relative; }
+        /* FIX: Visual distinction between Today and Selected */
+        .cal-day.selected { background: var(--cal-accent); color: var(--bg); font-weight: bold; }
+        .cal-day.today { border: 2px solid var(--today-color); color: var(--today-color); }
+        .cal-day.today.selected { border-color: #fff; } /* White border if today is also the selected day */
+
+        .cal-day.empty { pointer-events: none; }
 
         @media (max-width: 768px) {
             :root { --day-width: 85px; }
             .sidebar { position: fixed; width: 100vw !important; height: 100vh; left: 0; top: 0; transform: translateX(-100%); max-width: none; direction: ltr; }
-            .sidebar-content-wrapper { direction: ltr; }
             .sidebar:not(.collapsed) { transform: translateX(0); }
             .resizer { display: none; }
-            .toggle-btn { position: fixed; right: 20px; bottom: calc(30px + var(--safe-bottom)); left: auto !important; top: auto !important; width: 65px; height: 65px; border-radius: 50%; font-size: 28px; z-index: 9999; }
+            .bookmark-container { right: 20px; bottom: calc(30px + var(--safe-bottom)); left: auto !important; top: auto !important; flex-direction: column-reverse; }
+            .toggle-btn { width: 60px; height: 60px; border-radius: 50%; font-size: 24px; }
         }
     </style>
 </head>
-<body id="app-body">
+<body>
 
-    <div class="sidebar collapsed" id="sidebar">
-        <div class="sidebar-content-wrapper">
-            <div class="month-selector">
-                <label style="font-size: 9px; color: #64748b; font-weight: bold; letter-spacing: 1px;">DATABASE CONTEXT</label>
-                <div class="selector-row">
-                    <select id="month-picker"></select>
-                    <button class="today-btn" id="today-btn">TODAY</button>
-                </div>
-                <div id="status" style="font-size: 9px; color: #4ade80; text-align: center; font-weight: bold;">SYNCED</div>
+    <div id="calendar-modal">
+        <div class="cal-box">
+            <div class="cal-header">
+                <button class="cal-nav-btn" id="cal-prev">❮</button>
+                <h3 id="cal-month-year">...</h3>
+                <button class="cal-nav-btn" id="cal-next">❯</button>
             </div>
-            <textarea id="expression-editor" spellcheck="false" placeholder="{10 <= physics <= 20, comment}"></textarea>
+            <div class="cal-grid" id="cal-days-grid"></div>
+            <div style="padding: 10px; text-align: center; border-top: 1px solid #334155;">
+                <button class="action-btn" id="cal-close" style="background: transparent; color: #64748b; border: none;">CLOSE</button>
+            </div>
         </div>
     </div>
 
-    <div class="resizer" id="resizer"></div>
+    <div class="sidebar collapsed" id="sidebar">
+        <div class="sidebar-content-wrapper" id="panel-constraints">
+            <div class="context-header">
+                <label style="font-size: 9px; color: #64748b; font-weight: bold; letter-spacing: 1px;">DATABASE CONTEXT</label>
+                <div class="selector-row">
+                    <select id="month-picker"></select>
+                    <button class="action-btn" id="today-btn">TODAY</button>
+                </div>
+                <div id="status-constraints" style="font-size: 9px; color: #4ade80; text-align: center; font-weight: bold;">SYNCED</div>
+            </div>
+            <textarea class="text-editor" id="expression-editor" spellcheck="false" placeholder="{10 <= physics <= 20, comment}"></textarea>
+        </div>
+
+        <div class="sidebar-content-wrapper" id="panel-log" style="display: none;">
+            <div class="context-header" style="border-bottom-color: var(--log-accent);">
+                <label style="font-size: 9px; color: #64748b; font-weight: bold; letter-spacing: 1px;">DAILY LOG COUNTER</label>
+                <div class="selector-row">
+                    <div class="day-stepper">
+                        <button class="stepper-btn" id="day-minus">−</button>
+                        <input type="number" id="log-day" class="day-input" min="1" max="31">
+                        <button class="stepper-btn" id="day-plus">+</button>
+                    </div>
+                    <div id="log-month-display" style="flex:1; text-align:center; color: var(--log-accent); font-weight: bold; font-size: 14px;"></div>
+                </div>
+                <div id="status-log" style="font-size: 9px; color: var(--log-accent); text-align: center; font-weight: bold;">SYNCED</div>
+            </div>
+            <textarea class="text-editor" id="log-editor" spellcheck="false" placeholder="Enter daily log..."></textarea>
+        </div>
+    </div>
+
+    <div class="resizer" id="resizer">
+        <div class="resizer-line"></div>
+    </div>
 
     <div class="main-content" id="viewport">
         <div class="date-header-container" id="header-row"></div>
         <div class="timeline-content" id="timeline"></div>
     </div>
 
-    <button class="toggle-btn" id="toggle-sidebar">✎</button>
+    <div class="bookmark-container">
+        <button class="toggle-btn" id="btn-constraints" title="Constraints">✎</button>
+        <button class="toggle-btn" id="btn-log" title="Daily Log">📋</button>
+        <button class="toggle-btn" id="btn-calendar" title="Calendar">📅</button>
+    </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyAJ5BiW7eaNrS2JdWVoxoPqKBODllPEUsU",
@@ -212,16 +208,28 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    const dbRef = ref(db, 'constraints');
-
+    
     const editor = document.getElementById('expression-editor');
+    const logEditor = document.getElementById('log-editor');
     const timeline = document.getElementById('timeline');
     const headerRow = document.getElementById('header-row');
     const viewport = document.getElementById('viewport');
     const monthPicker = document.getElementById('month-picker');
     const sidebar = document.getElementById('sidebar');
-    const toggleBtn = document.getElementById('toggle-sidebar');
     const resizer = document.getElementById('resizer');
+    
+    const panelConstraints = document.getElementById('panel-constraints');
+    const panelLog = document.getElementById('panel-log');
+    const btnConstraints = document.getElementById('btn-constraints');
+    const btnLog = document.getElementById('btn-log');
+    const logDayInput = document.getElementById('log-day');
+    const logMonthDisplay = document.getElementById('log-month-display');
+    const statusLog = document.getElementById('status-log');
+    const statusConstraints = document.getElementById('status-constraints');
+    
+    const calModal = document.getElementById('calendar-modal');
+    const calGrid = document.getElementById('cal-days-grid');
+    const calTitle = document.getElementById('cal-month-year');
 
     const currentDate = new Date();
     const realYear = currentDate.getFullYear();
@@ -229,8 +237,8 @@
     const realDay = currentDate.getDate();
     let masterData = {};
     const COLORS = ['#38bdf8', '#f472b6', '#fbbf24', '#a855f7', '#4ade80', '#2dd4bf'];
-
     const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
     MONTHS.forEach((m, i) => {
         const opt = document.createElement('option');
         opt.value = i; opt.innerText = m;
@@ -238,54 +246,94 @@
         monthPicker.appendChild(opt);
     });
 
-    function autoResize() {
-        editor.style.height = 'auto';
-        editor.style.height = (editor.scrollHeight) + 'px';
-    }
-    editor.addEventListener('input', autoResize);
+    logDayInput.value = realDay;
 
-    // --- INTERACTIONS ---
-    let isResizing = false, isPanning = false, startX, startY, scrollLeft, scrollTop;
-
+    // --- RESIZER LOGIC ---
+    let isResizing = false;
     resizer.addEventListener('mousedown', (e) => { isResizing = true; document.body.classList.add('resizing'); e.preventDefault(); });
-    viewport.addEventListener('mousedown', (e) => {
-        if (e.target.closest('.clamped-group')) return;
-        isPanning = true; document.body.classList.add('dragging');
-        startX = e.pageX - viewport.offsetLeft; startY = e.pageY - viewport.offsetTop;
-        scrollLeft = viewport.scrollLeft; scrollTop = viewport.scrollTop;
-        e.preventDefault();
+    document.addEventListener('mousemove', (e) => { if (isResizing) { let newWidth = e.clientX; if (newWidth > 180 && newWidth < window.innerWidth * 0.8) { document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px'); } } });
+    document.addEventListener('mouseup', () => { if (isResizing) { isResizing = false; document.body.classList.remove('resizing'); } });
+
+    // --- PANNING LOGIC ---
+    let isPanning = false, startX, startY, scrollLeft, scrollTop;
+    viewport.addEventListener('mousedown', (e) => { if (e.target.closest('.clamped-group')) return; isPanning = true; document.body.classList.add('dragging'); startX = e.pageX - viewport.offsetLeft; startY = e.pageY - viewport.offsetTop; scrollLeft = viewport.scrollLeft; scrollTop = viewport.scrollTop; });
+    document.addEventListener('mousemove', (e) => { if (isPanning) { viewport.scrollLeft = scrollLeft - (e.pageX - viewport.offsetLeft - startX); viewport.scrollTop = scrollTop - (e.pageY - viewport.offsetTop - startY); } });
+    document.addEventListener('mouseup', () => { isPanning = false; document.body.classList.remove('dragging'); });
+
+    // --- CALENDAR LOGIC ---
+    let calDisplayMonth = realMonth;
+    let calDisplayYear = realYear;
+    document.getElementById('btn-calendar').onclick = () => { calDisplayMonth = parseInt(monthPicker.value); renderCalendar(); calModal.style.display = 'flex'; };
+    document.getElementById('cal-close').onclick = () => calModal.style.display = 'none';
+    document.getElementById('cal-prev').onclick = () => { calDisplayMonth--; if(calDisplayMonth < 0){calDisplayMonth=11; calDisplayYear--;} renderCalendar(); };
+    document.getElementById('cal-next').onclick = () => { calDisplayMonth++; if(calDisplayMonth > 11){calDisplayMonth=0; calDisplayYear++;} renderCalendar(); };
+
+    function renderCalendar() {
+        calGrid.innerHTML = '';
+        calTitle.innerText = `${MONTHS[calDisplayMonth].toUpperCase()} ${calDisplayYear}`;
+        const firstDay = new Date(calDisplayYear, calDisplayMonth, 1).getDay();
+        const daysInMonth = new Date(calDisplayYear, calDisplayMonth + 1, 0).getDate();
+        ['S','M','T','W','T','F','S'].forEach(w => { const d = document.createElement('div'); d.className = 'cal-weekday'; d.innerText = w; calGrid.appendChild(d); });
+        for (let i = 0; i < firstDay; i++) { const e = document.createElement('div'); e.className = 'cal-day empty'; calGrid.appendChild(e); }
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dayEl = document.createElement('div'); dayEl.className = 'cal-day'; dayEl.innerText = d;
+            if(d == realDay && calDisplayMonth == realMonth && calDisplayYear == realYear) dayEl.classList.add('today');
+            if(d == logDayInput.value && calDisplayMonth == monthPicker.value) dayEl.classList.add('selected');
+            dayEl.onclick = () => { monthPicker.value = calDisplayMonth; logDayInput.value = d; calModal.style.display = 'none'; if(sidebar.classList.contains('collapsed')) sidebar.classList.remove('collapsed'); switchMode('log'); renderGraph(); jumpToDay(d); };
+            calGrid.appendChild(dayEl);
+        }
+    }
+
+    function jumpToDay(day) { const dw = window.innerWidth <= 768 ? 85 : 140; viewport.scrollLeft = (day - 1) * dw - (viewport.clientWidth / 2) + (dw / 2); }
+
+    // --- PANEL SWITCHING ---
+    let currentMode = 'constraints';
+    function toggleSidebar(mode) { const isCollapsed = sidebar.classList.contains('collapsed'); if (isCollapsed) { sidebar.classList.remove('collapsed'); switchMode(mode); } else { if (currentMode === mode) sidebar.classList.add('collapsed'); else switchMode(mode); } }
+    function switchMode(mode) {
+        currentMode = mode;
+        if (mode === 'constraints') { panelConstraints.style.display = 'flex'; panelLog.style.display = 'none'; btnConstraints.classList.add('active'); btnLog.classList.remove('active'); setTimeout(() => autoResize(editor), 10); }
+        else { panelConstraints.style.display = 'none'; panelLog.style.display = 'flex'; btnLog.classList.add('active'); btnConstraints.classList.remove('active'); fetchDailyLog(); }
+    }
+    btnConstraints.onclick = () => toggleSidebar('constraints');
+    btnLog.onclick = () => toggleSidebar('log');
+
+    // --- DAILY LOG SYNC ---
+    function clampLogDay() { const month = parseInt(monthPicker.value); const daysInMonth = new Date(realYear, month + 1, 0).getDate(); let val = parseInt(logDayInput.value) || 1; if (val > daysInMonth) val = daysInMonth; if (val < 1) val = 1; logDayInput.value = val; }
+    logDayInput.onblur = () => { clampLogDay(); fetchDailyLog(); };
+    logDayInput.onkeydown = (e) => { if (e.key === 'Enter') logDayInput.blur(); };
+    document.getElementById('day-minus').onclick = () => { let val = parseInt(logDayInput.value) || 1; if (val > 1) { logDayInput.value = val - 1; fetchDailyLog(); } };
+    document.getElementById('day-plus').onclick = () => { let val = parseInt(logDayInput.value) || 1; const daysInMonth = new Date(realYear, parseInt(monthPicker.value) + 1, 0).getDate(); if (val < daysInMonth) { logDayInput.value = val + 1; fetchDailyLog(); } };
+
+    async function fetchDailyLog() { statusLog.innerText = "SYNCING..."; const month = monthPicker.value; const day = logDayInput.value; logMonthDisplay.innerText = `${MONTHS[month].toUpperCase()} ${realYear}`; try { const snapshot = await get(ref(db, `logs/${realYear}/${month}/${day}`)); logEditor.value = snapshot.val() || ""; statusLog.innerText = "SYNCED"; autoResize(logEditor); } catch(e) { statusLog.innerText = "ERROR"; } }
+    logEditor.oninput = () => { statusLog.innerText = "SAVING..."; set(ref(db, `logs/${realYear}/${monthPicker.value}/${logDayInput.value}`), logEditor.value).then(() => statusLog.innerText = "SAVED"); autoResize(logEditor); };
+
+    // --- FIX: Improved Auto-Resize without flicker ---
+    function autoResize(el) { el.style.height = '0px'; el.style.height = (el.scrollHeight) + 'px'; }
+
+    // --- DATA & RENDERING ---
+    onValue(ref(db, 'constraints'), (snapshot) => {
+        const data = snapshot.val();
+        if (data) { 
+            masterData = data; 
+            renderGraph(); 
+            // FIX: Don't update editor value if the user is currently typing to prevent jumping
+            if (currentMode === 'constraints' && document.activeElement !== editor) {
+                editor.value = masterData[monthPicker.value] || "";
+                autoResize(editor);
+            }
+        }
     });
 
-    document.addEventListener('mousemove', (e) => {
-        if (isResizing) {
-            let newWidth = e.clientX;
-            if (newWidth > 150 && newWidth < 600) document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px');
-        }
-        if (isPanning) {
-            viewport.scrollLeft = scrollLeft - (e.pageX - viewport.offsetLeft - startX);
-            viewport.scrollTop = scrollTop - (e.pageY - viewport.offsetTop - startY);
-        }
-    });
-
-    document.addEventListener('mouseup', () => { isResizing = false; isPanning = false; document.body.classList.remove('resizing', 'dragging'); });
-
-    toggleBtn.onclick = () => {
-        sidebar.classList.toggle('collapsed');
-        const isCollapsed = sidebar.classList.contains('collapsed');
-        toggleBtn.innerText = isCollapsed ? '✎' : (window.innerWidth <= 768 ? '✕' : '◀');
-        if (window.innerWidth > 768) toggleBtn.style.left = isCollapsed ? '0px' : 'var(--sidebar-width)';
+    editor.oninput = () => { 
+        statusConstraints.innerText = "SAVING..."; 
+        masterData[monthPicker.value] = editor.value; 
+        set(ref(db, 'constraints'), masterData).then(() => statusConstraints.innerText = "SAVED"); 
+        autoResize(editor); 
     };
 
-    // --- DATA ---
-    onValue(dbRef, (snapshot) => {
-        const data = snapshot.val();
-        if (data) { masterData = data; renderGraph(); setTimeout(autoResize, 50); }
-    });
-
-    function saveToCloud() {
-        masterData[monthPicker.value] = editor.value;
-        set(dbRef, masterData);
-    }
+    monthPicker.onchange = () => { clampLogDay(); renderGraph(); if (currentMode === 'log') fetchDailyLog(); };
+    window.onresize = renderGraph;
+    document.getElementById('today-btn').onclick = () => { monthPicker.value = realMonth; logDayInput.value = realDay; renderGraph(); if (currentMode === 'log') fetchDailyLog(); jumpToDay(realDay); };
 
     function renderGraph() {
         const dw = window.innerWidth <= 768 ? 85 : 140;
@@ -293,34 +341,28 @@
         const viewMonthIdx = parseInt(monthPicker.value);
         const daysInView = new Date(realYear, viewMonthIdx + 1, 0).getDate();
         
-        editor.value = masterData[viewMonthIdx] || "";
+        // FIX: Don't reset editor value here if focused
+        if (document.activeElement !== editor) editor.value = masterData[viewMonthIdx] || "";
+
         timeline.innerHTML = ''; headerRow.innerHTML = '';
         const totalWidth = daysInView * dw;
-        timeline.style.width = totalWidth + "px";
-        headerRow.style.width = totalWidth + "px";
-
+        timeline.style.width = totalWidth + "px"; headerRow.style.width = totalWidth + "px";
         for (let i = 1; i <= daysInView; i++) {
             const dateObj = new Date(realYear, viewMonthIdx, i);
             const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
             const isToday = (viewMonthIdx === realMonth && i === realDay);
-            
             const lbl = document.createElement('div');
             lbl.className = 'date-label' + (isToday ? ' today-label-active' : '');
             lbl.style.left = ((i-1) * dw) + "px";
             lbl.innerHTML = `<span class="date-number">${i}</span><span class="date-dayname">${dayName.toUpperCase()}</span>`;
             headerRow.appendChild(lbl);
-            
             if (isToday) {
                 const laser = document.createElement('div');
-                laser.className = 'today-marker-line';
-                laser.style.left = ((i-1) * dw) + "px";
+                laser.className = 'today-marker-line'; laser.style.left = ((i-1) * dw) + "px";
                 timeline.appendChild(laser);
             }
         }
-
-        let globalIndex = 0;
-        let vLinesToDraw = {}; 
-
+        let globalIndex = 0; let vLinesToDraw = {}; 
         Object.keys(masterData).sort().forEach(monthKey => {
             const matches = (masterData[monthKey] || "").match(/\{.*?\}/g) || [];
             matches.forEach((raw) => {
@@ -329,22 +371,16 @@
                 const comment = commentParts.join(',').trim();
                 const logic = logicPart.trim();
                 const color = COLORS[globalIndex % COLORS.length];
-                const yPos = 20 + (globalIndex * 60); 
-                globalIndex++;
-
+                const yPos = 20 + (globalIndex * 60); globalIndex++;
                 const rangeMatch = logic.match(/^(\d+)\s*(<=|>=|<|>)\s*([a-zA-Z0-9_]+)\s*(<=|>=|<|>)\s*(\d+)$/);
                 const varFirstMatch = logic.match(/^([a-zA-Z0-9_]+)\s*(<=|>=|<|>|=)\s*(\d+)$/);
                 const numFirstMatch = logic.match(/^(\d+)\s*(<=|>=|<|>|=)\s*([a-zA-Z0-9_]+)$/);
-
                 let name, left, right, showL = false, showR = false, shouldShow = false;
                 const viewMonthInt = parseInt(monthPicker.value);
                 const originMonthInt = parseInt(monthKey);
-
                 if (rangeMatch) {
-                    const [_, n1, o1, subName, o2, n2] = rangeMatch;
-                    name = subName;
-                    let v1 = parseInt(n1), v2 = parseInt(n2);
-                    let min = null, max = null;
+                    const [_, n1, o1, subName, o2, n2] = rangeMatch; name = subName;
+                    let v1 = parseInt(n1), v2 = parseInt(n2); let min = null, max = null;
                     if (o1.includes('<')) min = o1 === '<' ? v1 + 1 : v1; else max = o1 === '>' ? v1 - 1 : v1;
                     if (o2.includes('<')) max = o2 === '<' ? v2 - 1 : v2; else min = o2 === '>' ? v2 + 1 : v2;
                     if (viewMonthInt === originMonthInt && min <= max) { left = min; right = max; showL = showR = shouldShow = true; }
@@ -354,30 +390,13 @@
                     else { name = numFirstMatch[3]; val = parseInt(numFirstMatch[1]); op = {'<':'>','>':'<','<=':'>=','>=':'<=','=':'='}[numFirstMatch[2]]; }
                     left = 1; right = daysInView;
                     if (op === '=') { if (viewMonthInt === originMonthInt) { left = right = val; showL = showR = shouldShow = true; } }
-                    else if (op.includes('>')) {
-                        const s = op === '>' ? val + 1 : val;
-                        if (viewMonthInt === originMonthInt) { left = s; showL = shouldShow = true; } else if (viewMonthInt > originMonthInt) shouldShow = true;
-                    } else if (op.includes('<')) {
-                        const e = op === '<' ? val - 1 : val;
-                        if (viewMonthInt === originMonthInt) { right = e; showR = shouldShow = true; } else if (viewMonthInt < originMonthInt) shouldShow = true;
-                    }
+                    else if (op.includes('>')) { const s = op === '>' ? val + 1 : val; if (viewMonthInt === originMonthInt) { left = s; showL = shouldShow = true; } else if (viewMonthInt > originMonthInt) shouldShow = true; }
+                    else if (op.includes('<')) { const e = op === '<' ? val - 1 : val; if (viewMonthInt === originMonthInt) { right = e; showR = shouldShow = true; } else if (viewMonthInt < originMonthInt) shouldShow = true; }
                 }
-
-                if (shouldShow) {
-                    if (showL) vLinesToDraw[(left - 1) * dw] = color;
-                    if (showR) vLinesToDraw[right * dw] = color;
-                    drawBar(name, comment, left, right, yPos, color, showL, showR, dw);
-                }
+                if (shouldShow) { if (showL) vLinesToDraw[(left - 1) * dw] = color; if (showR) vLinesToDraw[right * dw] = color; drawBar(name, comment, left, right, yPos, color, showL, showR, dw); }
             });
         });
-
-        Object.keys(vLinesToDraw).forEach(x => {
-            const line = document.createElement('div');
-            line.className = 'v-line';
-            line.style.left = x + "px";
-            line.style.backgroundColor = vLinesToDraw[x];
-            timeline.appendChild(line);
-        });
+        Object.keys(vLinesToDraw).forEach(x => { const line = document.createElement('div'); line.className = 'v-line'; line.style.left = x + "px"; line.style.backgroundColor = vLinesToDraw[x]; timeline.appendChild(line); });
     }
 
     function drawBar(name, comment, start, end, y, color, showL, showR, dw) {
@@ -388,17 +407,7 @@
         timeline.appendChild(bar);
     }
 
-    editor.oninput = () => { saveToCloud(); autoResize(); };
-    monthPicker.onchange = () => { renderGraph(); setTimeout(autoResize, 50); };
-    window.onresize = renderGraph;
-
-    document.getElementById('today-btn').onclick = () => {
-        monthPicker.value = realMonth;
-        renderGraph();
-        const dw = window.innerWidth <= 768 ? 85 : 140;
-        viewport.scrollLeft = (realDay - 1) * dw - (viewport.clientWidth / 2) + (dw / 2);
-    };
-
+    switchMode('constraints');
     renderGraph();
 </script>
 </body>
