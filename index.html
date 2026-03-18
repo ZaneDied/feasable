@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cloud Constraint Timeline</title>
     <style>
         :root {
@@ -10,10 +10,26 @@
             --panel: #1e293b;
             --grid: rgba(255, 255, 255, 0.05);
             --day-width: 140px;
-            --sidebar-width: 350px;
+            --sidebar-width: 320px;
             --accent: #38bdf8;
             --today-color: #ef4444;
+            --resizer-w: 4px;
         }
+
+        /* Prevent highlighting while interacting */
+        .dragging, .resizing {
+            user-select: none !important;
+            cursor: grabbing !important;
+        }
+
+        /* --- AESTHETIC SCROLLBARS --- */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { 
+            background: rgba(255, 255, 255, 0.1); 
+            border-radius: 10px; 
+        }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
         body {
             margin: 0; padding: 0;
@@ -22,94 +38,167 @@
             display: flex; height: 100vh; overflow: hidden; color: #f8fafc;
         }
 
-        /* SIDEBAR */
+        /* --- SIDEBAR (FULL SCREEN ON MOBILE) --- */
         .sidebar {
             width: var(--sidebar-width);
+            min-width: 150px;
+            max-width: 600px;
             background-color: var(--panel);
-            border-right: 2px solid #334155;
-            display: flex; flex-direction: column; z-index: 1000;
+            display: flex; flex-direction: column; 
+            z-index: 2000; flex-shrink: 0;
+            position: relative;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.4s;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+        }
+
+        .sidebar.collapsed {
+            margin-left: calc(var(--sidebar-width) * -1);
+            transform: translateX(0);
+        }
+
+        /* ENHANCED RESIZER HITBOX */
+        .resizer {
+            width: var(--resizer-w);
+            cursor: col-resize;
+            background: rgba(255, 255, 255, 0.05);
+            z-index: 1001;
+            position: relative;
+        }
+        .resizer::after {
+            content: "";
+            position: absolute;
+            top: 0; left: -10px;
+            width: 24px; height: 100%;
+            background: transparent;
+        }
+        .resizer:hover, .resizing .resizer { background: var(--accent); }
+
+        .toggle-btn {
+            position: absolute; right: -40px; top: 20px;
+            width: 40px; height: 40px; background: var(--accent);
+            border: none; color: var(--bg); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 0 8px 8px 0; z-index: 2100;
+            font-weight: bold; font-size: 18px;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.3);
         }
 
         .month-selector {
             padding: 20px; background: #111827; border-bottom: 1px solid #334155;
-            display: flex; flex-direction: column; gap: 12px;
+            display: flex; flex-direction: column; gap: 10px;
         }
 
         select, .today-btn {
             background: var(--bg); color: var(--accent); border: 1px solid #334155;
-            padding: 12px; border-radius: 6px; font-weight: bold; outline: none;
-            cursor: pointer; transition: all 0.2s; font-size: 11px;
-        }
-
-        .today-btn { background: #334155; color: white; border: none; }
-        .today-btn:hover { background: #475569; }
-
-        .status-tag {
-            font-size: 9px; color: #4ade80; text-align: center; margin-top: 5px;
-            letter-spacing: 1px; text-transform: uppercase; font-weight: bold;
+            padding: 12px; border-radius: 6px; font-weight: bold; font-size: 13px;
+            outline: none; cursor: pointer;
         }
 
         #expression-editor {
             flex-grow: 1; background: transparent; color: #f8fafc;
-            border: none; padding: 20px; font-size: 14px; line-height: 1.6;
+            border: none; padding: 20px; font-size: 16px; line-height: 1.6;
             resize: none; outline: none;
         }
 
-        /* GRAPH AREA */
+        /* --- TIMELINE AREA --- */
         .main-content {
-            flex-grow: 1; position: relative; overflow-x: auto; overflow-y: hidden;
-            cursor: grab; background-image: linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+            flex-grow: 1; position: relative; overflow: auto;
+            background-image: linear-gradient(90deg, var(--grid) 1px, transparent 1px);
             background-size: var(--day-width) 100%;
-            scrollbar-width: none; -ms-overflow-style: none;
+            cursor: grab;
         }
-        .main-content::-webkit-scrollbar { display: none; }
-        .timeline-content { height: 100%; position: relative; }
+        
+        .timeline-content { min-height: 100%; position: relative; padding-top: 50px; padding-bottom: 100px; }
 
-        /* HEADERS */
+        /* STICKY DATE HEADER */
+        .date-header-container {
+            position: sticky; top: 0; left: 0; height: 50px; 
+            z-index: 100; background: var(--bg);
+            border-bottom: 1px solid var(--grid);
+        }
+
         .date-label {
             position: absolute; top: 0; height: 50px; font-size: 11px; color: #64748b;
             width: var(--day-width); display: flex; align-items: center; justify-content: center;
-            z-index: 5; border-bottom: 1px solid var(--grid);
+            pointer-events: none;
         }
 
         .today-marker-line {
             position: absolute; top: 0; bottom: 0; width: 2px;
             background: var(--today-color); z-index: 60; pointer-events: none;
         }
+        .today-label-active { color: #fff !important; background: var(--today-color); font-weight: 900; border-radius: 0 0 4px 4px; }
 
-        .today-label-active { color: #fff !important; background: var(--today-color); font-weight: 900; }
-
-        /* BARS & LABELS */
-        .h-zone { position: absolute; height: 46px; z-index: 20; border-radius: 6px; display: flex; align-items: center; }
+        .h-zone { position: absolute; height: 40px; z-index: 20; border-radius: 4px; display: flex; align-items: center; pointer-events: none; }
         
         .clamped-group {
-            position: sticky; left: 20px; padding: 6px 14px; display: flex; flex-direction: column;
-            background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); border-radius: 8px;
-            margin-left: 5px; pointer-events: none; z-index: 50; border: 1px solid rgba(255,255,255,0.1);
+            position: sticky; left: 10px; padding: 4px 8px; display: flex; flex-direction: column;
+            background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); border-radius: 6px;
+            z-index: 50; border: 1px solid rgba(255,255,255,0.1);
         }
-
-        .subject-name { font-weight: 900; font-size: 12px; letter-spacing: 0.5px; }
-        .comment-text { font-weight: 400; font-size: 10px; opacity: 0.7; color: #fff; white-space: nowrap; margin-top: 2px; }
+        .subject-name { font-weight: 900; font-size: 10px; }
+        .comment-text { font-size: 9px; opacity: 0.8; white-space: nowrap; }
         
-        .v-line { 
-            position: absolute; top: 0; bottom: 0; width: 1px; 
-            z-index: 10; opacity: 0.8; pointer-events: none;
+        .v-line { position: absolute; top: 0; bottom: 0; width: 1px; z-index: 10; opacity: 0.4; pointer-events: none; }
+
+        /* --- MOBILE MODE: FULL SCREEN INPUT --- */
+        @media (max-width: 768px) {
+            :root { --day-width: 85px; }
+            .sidebar { 
+                position: fixed; 
+                width: 100vw !important; 
+                height: 100vh; 
+                left: 0; 
+                top: 0;
+                margin-left: 0;
+                transform: translateX(-100%);
+                max-width: none;
+            }
+            .sidebar.collapsed { transform: translateX(-100%); margin-left: 0; }
+            .sidebar:not(.collapsed) { transform: translateX(0); }
+            
+            .resizer { display: none; }
+            
+            .toggle-btn {
+                position: fixed;
+                right: 20px;
+                bottom: 20px;
+                top: auto;
+                left: auto;
+                width: 60px;
+                height: 60px;
+                border-radius: 50%;
+                font-size: 24px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+                z-index: 3000;
+            }
+
+            /* Make it clear how to close the editor on mobile */
+            .sidebar:not(.collapsed) .toggle-btn {
+                right: 20px;
+                bottom: 20px;
+                background: #ef4444; /* Red for 'Close' */
+            }
         }
     </style>
 </head>
-<body>
+<body id="app-body">
 
-    <div class="sidebar">
+    <div class="sidebar collapsed" id="sidebar">
+        <button class="toggle-btn" id="toggle-sidebar">✎</button>
         <div class="month-selector">
-            <label style="font-size: 10px; color: #64748b; font-weight: bold;">CLOUD CONTEXT</label>
+            <label style="font-size: 9px; color: #64748b; font-weight: bold; letter-spacing: 1px;">DATABASE CONTEXT</label>
             <select id="month-picker"></select>
             <button class="today-btn" id="today-btn">JUMP TO TODAY</button>
-            <div class="status-tag" id="status">Syncing...</div>
+            <div id="status" style="font-size: 9px; color: #4ade80; text-align: center; font-weight: bold;">SYNCED</div>
         </div>
-        <textarea id="expression-editor" spellcheck="false" placeholder="{subject >= day, comment}"></textarea>
+        <textarea id="expression-editor" spellcheck="false" placeholder="{10 <= physics <= 20, comment}"></textarea>
     </div>
 
+    <div class="resizer" id="resizer"></div>
+
     <div class="main-content" id="viewport">
+        <div class="date-header-container" id="header-row"></div>
         <div class="timeline-content" id="timeline"></div>
     </div>
 
@@ -133,18 +222,21 @@
 
     const editor = document.getElementById('expression-editor');
     const timeline = document.getElementById('timeline');
+    const headerRow = document.getElementById('header-row');
     const viewport = document.getElementById('viewport');
     const monthPicker = document.getElementById('month-picker');
-    const statusTag = document.getElementById('status');
-    
-    const dayWidth = 140;
-    const realMonth = 2; // March 2026
-    const realDay = 17;
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('toggle-sidebar');
+    const resizer = document.getElementById('resizer');
+
+    const currentDate = new Date();
+    const realYear = currentDate.getFullYear();
+    const realMonth = currentDate.getMonth(); 
+    const realDay = currentDate.getDate();
     let masterData = {};
+    const COLORS = ['#38bdf8', '#f472b6', '#fbbf24', '#a855f7', '#4ade80', '#2dd4bf'];
 
-    const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const COLORS = ['#38bdf8', '#f472b6', '#fbbf24', '#a855f7', '#4ade80'];
-
+    const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     MONTHS.forEach((m, i) => {
         const opt = document.createElement('option');
         opt.value = i; opt.innerText = m;
@@ -152,42 +244,102 @@
         monthPicker.appendChild(opt);
     });
 
-    // FIREBASE LISTEN
+    // --- RESIZER ---
+    let isResizing = false;
+    resizer.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        document.body.classList.add('resizing');
+        e.preventDefault();
+    });
+
+    // --- PAN-TO-SCROLL ---
+    let isPanning = false;
+    let startX, startY, scrollLeft, scrollTop;
+
+    viewport.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.clamped-group')) return;
+        isPanning = true;
+        document.body.classList.add('dragging');
+        startX = e.pageX - viewport.offsetLeft;
+        startY = e.pageY - viewport.offsetTop;
+        scrollLeft = viewport.scrollLeft;
+        scrollTop = viewport.scrollTop;
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (isResizing) {
+            let newWidth = e.clientX;
+            if (newWidth > 150 && newWidth < 600) {
+                document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px');
+            }
+        }
+        if (isPanning) {
+            const walkX = (e.pageX - viewport.offsetLeft - startX);
+            const walkY = (e.pageY - viewport.offsetTop - startY);
+            viewport.scrollLeft = scrollLeft - walkX;
+            viewport.scrollTop = scrollTop - walkY;
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        isResizing = false;
+        isPanning = false;
+        document.body.classList.remove('resizing', 'dragging');
+    });
+
+    // --- TOGGLE ---
+    toggleBtn.onclick = () => {
+        sidebar.classList.toggle('collapsed');
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        
+        if(window.innerWidth <= 768) {
+            toggleBtn.innerText = isCollapsed ? '✎' : '✕';
+        } else {
+            toggleBtn.innerText = isCollapsed ? '▶' : '◀';
+        }
+    };
+
+    // --- DATA ---
     onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
         if (data) {
             masterData = data;
-            statusTag.innerText = "Synced";
             renderGraph();
         }
     });
 
     function saveToCloud() {
         masterData[monthPicker.value] = editor.value;
-        set(dbRef, masterData).then(() => {
-            statusTag.innerText = "Saved";
-        });
+        set(dbRef, masterData);
     }
 
     function renderGraph() {
+        const dw = window.innerWidth <= 768 ? 85 : 140;
+        document.documentElement.style.setProperty('--day-width', dw + 'px');
         const viewMonthIdx = parseInt(monthPicker.value);
-        const daysInView = new Date(2026, viewMonthIdx + 1, 0).getDate();
+        const daysInView = new Date(realYear, viewMonthIdx + 1, 0).getDate();
+        
         editor.value = masterData[viewMonthIdx] || "";
         timeline.innerHTML = '';
-        timeline.style.width = (daysInView * dayWidth) + "px";
+        headerRow.innerHTML = '';
+        
+        const totalWidth = daysInView * dw;
+        timeline.style.width = totalWidth + "px";
+        headerRow.style.width = totalWidth + "px";
 
-        // Draw Date Headers
         for (let i = 1; i <= daysInView; i++) {
             const isToday = (viewMonthIdx === realMonth && i === realDay);
             const lbl = document.createElement('div');
             lbl.className = 'date-label' + (isToday ? ' today-label-active' : '');
-            lbl.style.left = ((i-1) * dayWidth) + "px";
+            lbl.style.left = ((i-1) * dw) + "px";
             lbl.innerText = i;
-            timeline.appendChild(lbl);
+            headerRow.appendChild(lbl);
+            
             if (isToday) {
                 const laser = document.createElement('div');
                 laser.className = 'today-marker-line';
-                laser.style.left = ((i-1) * dayWidth) + "px";
+                laser.style.left = ((i-1) * dw) + "px";
                 timeline.appendChild(laser);
             }
         }
@@ -196,54 +348,57 @@
         let vLinesToDraw = {}; 
 
         Object.keys(masterData).sort().forEach(monthKey => {
-            const content = masterData[monthKey];
-            const matches = content.match(/\{.*?\}/g) || [];
-
+            const matches = (masterData[monthKey] || "").match(/\{.*?\}/g) || [];
             matches.forEach((raw) => {
                 const fullContent = raw.replace(/\{|\}/g, '').trim();
                 const [logicPart, ...commentParts] = fullContent.split(',');
                 const comment = commentParts.join(',').trim();
                 const logic = logicPart.trim();
                 const color = COLORS[globalIndex % COLORS.length];
-                const yPos = 90 + (globalIndex * 60);
+                const yPos = 20 + (globalIndex * 55); 
                 globalIndex++;
 
-                const simpleMatch = logic.match(/^([a-zA-Z]+)\s*(<=|>=|=)\s*(\d+)$/);
-                if (simpleMatch) {
-                    const [_, name, op, val] = simpleMatch;
-                    const day = parseInt(val);
-                    let left = 1, right = daysInView, showL = false, showR = false;
-                    let shouldShow = false;
+                const rangeMatch = logic.match(/^(\d+)\s*(<=|>=|<|>)\s*([a-zA-Z0-9_]+)\s*(<=|>=|<|>)\s*(\d+)$/);
+                const varFirstMatch = logic.match(/^([a-zA-Z0-9_]+)\s*(<=|>=|<|>|=)\s*(\d+)$/);
+                const numFirstMatch = logic.match(/^(\d+)\s*(<=|>=|<|>|=)\s*([a-zA-Z0-9_]+)$/);
 
-                    const viewMonthInt = parseInt(monthPicker.value);
-                    const originMonthInt = parseInt(monthKey);
+                let name, left, right, showL = false, showR = false, shouldShow = false;
+                const viewMonthInt = parseInt(monthPicker.value);
+                const originMonthInt = parseInt(monthKey);
 
-                    // LOGIC HANDLER
-                    if (op === '=') {
-                        if (viewMonthInt === originMonthInt) {
-                            left = day; right = day; showL = true; showR = true; shouldShow = true;
-                        }
-                    } else if (op === '>=') {
-                        if (viewMonthInt === originMonthInt) { 
-                            left = day; showL = true; shouldShow = true; 
-                        } else if (viewMonthInt > originMonthInt) { shouldShow = true; }
-                    } else if (op === '<=') {
-                        if (viewMonthInt === originMonthInt) { 
-                            right = day; showR = true; shouldShow = true; 
-                        } else if (viewMonthInt < originMonthInt) { shouldShow = true; }
+                if (rangeMatch) {
+                    const [_, n1, o1, subName, o2, n2] = rangeMatch;
+                    name = subName;
+                    let v1 = parseInt(n1), v2 = parseInt(n2);
+                    let min = null, max = null;
+                    if (o1.includes('<')) min = o1 === '<' ? v1 + 1 : v1; else max = o1 === '>' ? v1 - 1 : v1;
+                    if (o2.includes('<')) max = o2 === '<' ? v2 - 1 : v2; else min = o2 === '>' ? v2 + 1 : v2;
+                    if (viewMonthInt === originMonthInt && min <= max) {
+                        left = min; right = max; showL = showR = shouldShow = true;
                     }
-
-                    if (shouldShow) {
-                        // Queue lines for de-duplicated drawing
-                        if (showL) vLinesToDraw[(left - 1) * dayWidth] = color;
-                        if (showR) vLinesToDraw[right * dayWidth] = color;
-                        drawBar(name, comment, left, right, yPos, color, showL, showR);
+                } else if (varFirstMatch || numFirstMatch) {
+                    let op, val;
+                    if (varFirstMatch) { name = varFirstMatch[1]; op = varFirstMatch[2]; val = parseInt(varFirstMatch[3]); }
+                    else { name = numFirstMatch[3]; val = parseInt(numFirstMatch[1]); op = {'<':'>','>':'<','<=':'>=','>=':'<=','=':'='}[numFirstMatch[2]]; }
+                    left = 1; right = daysInView;
+                    if (op === '=') { if (viewMonthInt === originMonthInt) { left = right = val; showL = showR = shouldShow = true; } }
+                    else if (op.includes('>')) {
+                        const s = op === '>' ? val + 1 : val;
+                        if (viewMonthInt === originMonthInt) { left = s; showL = shouldShow = true; } else if (viewMonthInt > originMonthInt) shouldShow = true;
+                    } else if (op.includes('<')) {
+                        const e = op === '<' ? val - 1 : val;
+                        if (viewMonthInt === originMonthInt) { right = e; showR = shouldShow = true; } else if (viewMonthInt < originMonthInt) shouldShow = true;
                     }
+                }
+
+                if (shouldShow) {
+                    if (showL) vLinesToDraw[(left - 1) * dw] = color;
+                    if (showR) vLinesToDraw[right * dw] = color;
+                    drawBar(name, comment, left, right, yPos, color, showL, showR, dw);
                 }
             });
         });
 
-        // Draw Lines once (No Glow)
         Object.keys(vLinesToDraw).forEach(x => {
             const line = document.createElement('div');
             line.className = 'v-line';
@@ -253,58 +408,24 @@
         });
     }
 
-    function drawBar(name, comment, start, end, y, color, showL, showR) {
-        const xStart = (start - 1) * dayWidth;
-        const xEnd = (end - 1) * dayWidth;
+    function drawBar(name, comment, start, end, y, color, showL, showR, dw) {
         const bar = document.createElement('div');
         bar.className = 'h-zone';
-        bar.style.top = y + "px"; 
-        bar.style.left = xStart + "px";
-        bar.style.width = (xEnd - xStart + dayWidth) + "px";
-        bar.style.backgroundColor = color + "15"; 
-        bar.style.color = color;
-        bar.style.borderLeft = showL ? `2px solid ${color}` : "none";
-        bar.style.borderRight = showR ? `2px solid ${color}` : "none";
-
-        const group = document.createElement('div');
-        group.className = 'clamped-group';
-        group.innerHTML = `<span class="subject-name">${name.toUpperCase()}</span>`;
-        if (comment) group.innerHTML += `<span class="comment-text">${comment}</span>`;
-
-        bar.appendChild(group);
+        bar.style.cssText = `top:${y}px; left:${(start-1)*dw}px; width:${(end-start+1)*dw}px; background:${color}15; color:${color}; border-left:${showL?`2px solid ${color}`:'none'}; border-right:${showR?`2px solid ${color}`:'none'}`;
+        bar.innerHTML = `<div class="clamped-group"><span class="subject-name">${name.toUpperCase()}</span>${comment?`<span class="comment-text">${comment}</span>`:''}</div>`;
         timeline.appendChild(bar);
     }
 
-    // EVENT LISTENERS
-    editor.addEventListener('input', saveToCloud);
-    monthPicker.addEventListener('change', renderGraph);
+    editor.oninput = saveToCloud;
+    monthPicker.onchange = renderGraph;
+    window.onresize = renderGraph;
 
     document.getElementById('today-btn').onclick = () => {
         monthPicker.value = realMonth;
         renderGraph();
-        viewport.scrollLeft = (realDay - 1) * dayWidth - (viewport.clientWidth / 2) + (dayWidth / 2);
+        const dw = window.innerWidth <= 768 ? 85 : 140;
+        viewport.scrollLeft = (realDay - 1) * dw - (viewport.clientWidth / 2) + (dw / 2);
     };
-
-    viewport.addEventListener('wheel', (e) => {
-        if (e.deltaY !== 0) { 
-            e.preventDefault(); 
-            viewport.scrollLeft += e.deltaY; 
-        }
-    }, { passive: false });
-
-    let isDown = false; let startX; let scrollLeft;
-    viewport.addEventListener('mousedown', (e) => {
-        isDown = true; viewport.style.cursor = 'grabbing';
-        startX = e.pageX - viewport.offsetLeft; scrollLeft = viewport.scrollLeft;
-    });
-    viewport.addEventListener('mouseup', () => { isDown = false; viewport.style.cursor = 'grab'; });
-    viewport.addEventListener('mouseleave', () => { isDown = false; viewport.style.cursor = 'grab'; });
-    viewport.addEventListener('mousemove', (e) => {
-        if (!isDown) return;
-        const x = e.pageX - viewport.offsetLeft;
-        const walk = (x - startX) * 2;
-        viewport.scrollLeft = scrollLeft - walk;
-    });
 
     renderGraph();
 </script>
