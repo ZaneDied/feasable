@@ -21,7 +21,7 @@
             --accent: #38bdf8;
             --log-accent: #fbbf24;
             --cal-accent: #a855f7;
-            --today-color: #ef4444; /* Red for Today markers */
+            --today-color: #ef4444;
             --font-hand: 'Architects Daughter', cursive;
             --font-code: 'Fira Code', monospace;
             --safe-top: env(safe-area-inset-top);
@@ -41,7 +41,6 @@
             display: flex; height: 100vh; overflow: hidden; color: #f8fafc; position: fixed; width: 100%;
         }
 
-        /* --- SIDEBAR --- */
         .sidebar {
             width: var(--sidebar-width); min-width: 180px; max-width: 80vw;
             background-color: var(--panel); z-index: 2000; flex-shrink: 0; position: relative;
@@ -76,7 +75,6 @@
         }
         #log-editor { font-family: var(--font-hand); font-size: 18px; }
 
-        /* --- TIMELINE --- */
         .date-header-container { position: sticky; top: 0; left: 0; height: calc(65px + var(--safe-top)); z-index: 100; background: var(--bg); border-bottom: 1px solid var(--grid); display: flex; align-items: flex-end; }
         .date-label { position: absolute; bottom: 0; height: 65px; color: #94a3b8; width: var(--day-width); display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; line-height: 1.1; font-family: var(--font-hand); }
         .date-number { font-size: 19px; font-weight: bold; }
@@ -93,7 +91,6 @@
         .comment-text { font-size: 11px; opacity: 0.9; white-space: nowrap; margin-top: -2px; }
         .v-line { position: absolute; top: 0; bottom: 0; width: 1.5px; z-index: 10; opacity: 0.3; pointer-events: none; }
 
-        /* --- BOOKMARKS --- */
         .bookmark-container { position: fixed; left: var(--sidebar-width); top: calc(20px + var(--safe-top)); display: flex; flex-direction: column; gap: 10px; z-index: 3000; transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
         body.resizing .bookmark-container { transition: none !important; }
         .sidebar.collapsed ~ .bookmark-container { left: 0; }
@@ -103,7 +100,6 @@
         #btn-calendar { background: var(--cal-accent); }
         .toggle-btn.active { transform: scale(1.1); z-index: 3001; }
 
-        /* --- CALENDAR MODAL --- */
         #calendar-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px); z-index: 5000; display: none; align-items: center; justify-content: center; }
         .cal-box { background: var(--panel); width: 320px; border-radius: 20px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); border: 1px solid rgba(255,255,255,0.1); }
         .cal-header { background: #111827; padding: 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
@@ -114,10 +110,9 @@
         .cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 8px; font-size: 13px; transition: 0.2s; position: relative; }
         .cal-day:hover { background: rgba(255,255,255,0.1); }
         
-        /* FIX: Visual distinction between Today and Selected */
         .cal-day.selected { background: var(--cal-accent); color: var(--bg); font-weight: bold; }
         .cal-day.today { border: 2px solid var(--today-color); color: var(--today-color); }
-        .cal-day.today.selected { border-color: #fff; } /* White border if today is also the selected day */
+        .cal-day.today.selected { border-color: #fff; }
 
         .cal-day.empty { pointer-events: none; }
 
@@ -157,7 +152,7 @@
                 </div>
                 <div id="status-constraints" style="font-size: 9px; color: #4ade80; text-align: center; font-weight: bold;">SYNCED</div>
             </div>
-            <textarea class="text-editor" id="expression-editor" spellcheck="false" placeholder="{10 <= physics <= 20, comment}"></textarea>
+            <textarea class="text-editor" id="expression-editor" spellcheck="false" placeholder="{hey >= 2, lol, !7 !3}"></textarea>
         </div>
 
         <div class="sidebar-content-wrapper" id="panel-log" style="display: none;">
@@ -248,19 +243,16 @@
 
     logDayInput.value = realDay;
 
-    // --- RESIZER LOGIC ---
     let isResizing = false;
     resizer.addEventListener('mousedown', (e) => { isResizing = true; document.body.classList.add('resizing'); e.preventDefault(); });
     document.addEventListener('mousemove', (e) => { if (isResizing) { let newWidth = e.clientX; if (newWidth > 180 && newWidth < window.innerWidth * 0.8) { document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px'); } } });
     document.addEventListener('mouseup', () => { if (isResizing) { isResizing = false; document.body.classList.remove('resizing'); } });
 
-    // --- PANNING LOGIC ---
     let isPanning = false, startX, startY, scrollLeft, scrollTop;
     viewport.addEventListener('mousedown', (e) => { if (e.target.closest('.clamped-group')) return; isPanning = true; document.body.classList.add('dragging'); startX = e.pageX - viewport.offsetLeft; startY = e.pageY - viewport.offsetTop; scrollLeft = viewport.scrollLeft; scrollTop = viewport.scrollTop; });
     document.addEventListener('mousemove', (e) => { if (isPanning) { viewport.scrollLeft = scrollLeft - (e.pageX - viewport.offsetLeft - startX); viewport.scrollTop = scrollTop - (e.pageY - viewport.offsetTop - startY); } });
     document.addEventListener('mouseup', () => { isPanning = false; document.body.classList.remove('dragging'); });
 
-    // --- CALENDAR LOGIC ---
     let calDisplayMonth = realMonth;
     let calDisplayYear = realYear;
     document.getElementById('btn-calendar').onclick = () => { calDisplayMonth = parseInt(monthPicker.value); renderCalendar(); calModal.style.display = 'flex'; };
@@ -286,7 +278,6 @@
 
     function jumpToDay(day) { const dw = window.innerWidth <= 768 ? 85 : 140; viewport.scrollLeft = (day - 1) * dw - (viewport.clientWidth / 2) + (dw / 2); }
 
-    // --- PANEL SWITCHING ---
     let currentMode = 'constraints';
     function toggleSidebar(mode) { const isCollapsed = sidebar.classList.contains('collapsed'); if (isCollapsed) { sidebar.classList.remove('collapsed'); switchMode(mode); } else { if (currentMode === mode) sidebar.classList.add('collapsed'); else switchMode(mode); } }
     function switchMode(mode) {
@@ -297,7 +288,6 @@
     btnConstraints.onclick = () => toggleSidebar('constraints');
     btnLog.onclick = () => toggleSidebar('log');
 
-    // --- DAILY LOG SYNC ---
     function clampLogDay() { const month = parseInt(monthPicker.value); const daysInMonth = new Date(realYear, month + 1, 0).getDate(); let val = parseInt(logDayInput.value) || 1; if (val > daysInMonth) val = daysInMonth; if (val < 1) val = 1; logDayInput.value = val; }
     logDayInput.onblur = () => { clampLogDay(); fetchDailyLog(); };
     logDayInput.onkeydown = (e) => { if (e.key === 'Enter') logDayInput.blur(); };
@@ -307,16 +297,13 @@
     async function fetchDailyLog() { statusLog.innerText = "SYNCING..."; const month = monthPicker.value; const day = logDayInput.value; logMonthDisplay.innerText = `${MONTHS[month].toUpperCase()} ${realYear}`; try { const snapshot = await get(ref(db, `logs/${realYear}/${month}/${day}`)); logEditor.value = snapshot.val() || ""; statusLog.innerText = "SYNCED"; autoResize(logEditor); } catch(e) { statusLog.innerText = "ERROR"; } }
     logEditor.oninput = () => { statusLog.innerText = "SAVING..."; set(ref(db, `logs/${realYear}/${monthPicker.value}/${logDayInput.value}`), logEditor.value).then(() => statusLog.innerText = "SAVED"); autoResize(logEditor); };
 
-    // --- FIX: Improved Auto-Resize without flicker ---
     function autoResize(el) { el.style.height = '0px'; el.style.height = (el.scrollHeight) + 'px'; }
 
-    // --- DATA & RENDERING ---
     onValue(ref(db, 'constraints'), (snapshot) => {
         const data = snapshot.val();
         if (data) { 
             masterData = data; 
             renderGraph(); 
-            // FIX: Don't update editor value if the user is currently typing to prevent jumping
             if (currentMode === 'constraints' && document.activeElement !== editor) {
                 editor.value = masterData[monthPicker.value] || "";
                 autoResize(editor);
@@ -341,7 +328,6 @@
         const viewMonthIdx = parseInt(monthPicker.value);
         const daysInView = new Date(realYear, viewMonthIdx + 1, 0).getDate();
         
-        // FIX: Don't reset editor value here if focused
         if (document.activeElement !== editor) editor.value = masterData[viewMonthIdx] || "";
 
         timeline.innerHTML = ''; headerRow.innerHTML = '';
@@ -367,9 +353,37 @@
             const matches = (masterData[monthKey] || "").match(/\{.*?\}/g) || [];
             matches.forEach((raw) => {
                 const fullContent = raw.replace(/\{|\}/g, '').trim();
-                const [logicPart, ...commentParts] = fullContent.split(',');
-                const comment = commentParts.join(',').trim();
-                const logic = logicPart.trim();
+                
+                // MULTI-EXCLUSION PARSING LOGIC (handles comma or space separated markers)
+                const parts = fullContent.split(',');
+                const logic = parts.shift().trim();
+                
+                let excludedDays = new Set();
+                let finalCommentParts = [];
+                
+                parts.forEach(part => {
+                    let cleanTokens = [];
+                    // Split the part by spaces to check each word/token
+                    let tokens = part.trim().split(/\s+/);
+                    
+                    tokens.forEach(tok => {
+                        // If the token is exactly !1 through !7, add to excluded days
+                        if (/^![1-7]$/.test(tok)) {
+                            excludedDays.add(parseInt(tok.substring(1)));
+                        } else {
+                            // Otherwise, it's a regular comment word
+                            cleanTokens.push(tok);
+                        }
+                    });
+                    
+                    // If there are valid words left, reconstruct the comment portion
+                    if (cleanTokens.length > 0) {
+                        finalCommentParts.push(cleanTokens.join(' '));
+                    }
+                });
+                
+                const comment = finalCommentParts.join(', ').trim();
+
                 const color = COLORS[globalIndex % COLORS.length];
                 const yPos = 20 + (globalIndex * 60); globalIndex++;
                 const rangeMatch = logic.match(/^(\d+)\s*(<=|>=|<|>)\s*([a-zA-Z0-9_]+)\s*(<=|>=|<|>)\s*(\d+)$/);
@@ -378,6 +392,7 @@
                 let name, left, right, showL = false, showR = false, shouldShow = false;
                 const viewMonthInt = parseInt(monthPicker.value);
                 const originMonthInt = parseInt(monthKey);
+                
                 if (rangeMatch) {
                     const [_, n1, o1, subName, o2, n2] = rangeMatch; name = subName;
                     let v1 = parseInt(n1), v2 = parseInt(n2); let min = null, max = null;
@@ -393,7 +408,38 @@
                     else if (op.includes('>')) { const s = op === '>' ? val + 1 : val; if (viewMonthInt === originMonthInt) { left = s; showL = shouldShow = true; } else if (viewMonthInt > originMonthInt) shouldShow = true; }
                     else if (op.includes('<')) { const e = op === '<' ? val - 1 : val; if (viewMonthInt === originMonthInt) { right = e; showR = shouldShow = true; } else if (viewMonthInt < originMonthInt) shouldShow = true; }
                 }
-                if (shouldShow) { if (showL) vLinesToDraw[(left - 1) * dw] = color; if (showR) vLinesToDraw[right * dw] = color; drawBar(name, comment, left, right, yPos, color, showL, showR, dw); }
+                
+                if (shouldShow) { 
+                    if (showL) vLinesToDraw[(left - 1) * dw] = color; 
+                    if (showR) vLinesToDraw[right * dw] = color; 
+                    
+                    let segments = [];
+                    let currentStart = null;
+                    
+                    for (let d = left; d <= right; d++) {
+                        let jsDay = new Date(realYear, viewMonthInt, d).getDay();
+                        // Convert JS Date (0=Sun, 1=Mon) to custom day (1=Mon ... 7=Sun)
+                        let userDay = jsDay === 0 ? 7 : jsDay; 
+                        
+                        if (!excludedDays.has(userDay)) {
+                            if (currentStart === null) currentStart = d;
+                        } else {
+                            if (currentStart !== null) {
+                                segments.push({start: currentStart, end: d - 1});
+                                currentStart = null;
+                            }
+                        }
+                    }
+                    if (currentStart !== null) {
+                        segments.push({start: currentStart, end: right});
+                    }
+
+                    segments.forEach(seg => {
+                        let sL = (seg.start === left) ? showL : false;
+                        let sR = (seg.end === right) ? showR : false;
+                        drawBar(name, comment, seg.start, seg.end, yPos, color, sL, sR, dw);
+                    });
+                }
             });
         });
         Object.keys(vLinesToDraw).forEach(x => { const line = document.createElement('div'); line.className = 'v-line'; line.style.left = x + "px"; line.style.backgroundColor = vLinesToDraw[x]; timeline.appendChild(line); });
