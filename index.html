@@ -21,6 +21,7 @@
             --accent: #38bdf8;
             --log-accent: #fbbf24;
             --cal-accent: #a855f7;
+            --sub-accent: #f472b6;
             --today-color: #ef4444;
             --font-hand: 'Architects Daughter', cursive;
             --font-code: 'Fira Code', monospace;
@@ -73,7 +74,7 @@
             font-size: 16px; line-height: 1.6; resize: none; outline: none; overflow: hidden;
             width: 100%; box-sizing: border-box; font-family: var(--font-code); padding-bottom: calc(var(--safe-bottom) + 140px); 
         }
-        #log-editor { font-family: var(--font-hand); font-size: 18px; }
+        #log-editor, #subnote-editor { font-family: var(--font-hand); font-size: 18px; }
 
         .date-header-container { position: sticky; top: 0; left: 0; height: calc(65px + var(--safe-top)); z-index: 100; background: var(--bg); border-bottom: 1px solid var(--grid); display: flex; align-items: flex-end; }
         .date-label { position: absolute; bottom: 0; height: 65px; color: #94a3b8; width: var(--day-width); display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; line-height: 1.1; font-family: var(--font-hand); }
@@ -85,8 +86,9 @@
         .timeline-content { min-height: 100%; position: relative; padding-bottom: calc(100px + var(--safe-bottom)); }
         .today-marker-line { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--today-color); z-index: 60; pointer-events: none; }
 
-        .h-zone { position: absolute; height: 44px; z-index: 20; border-radius: 4px; display: flex; align-items: center; pointer-events: none; }
-        .clamped-group { position: sticky; left: 10px; padding: 6px 10px; display: flex; flex-direction: column; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); border-radius: 8px; z-index: 50; border: 1.5px solid rgba(255,255,255,0.15); font-family: var(--font-hand); }
+        .h-zone { position: absolute; height: 44px; z-index: 20; border-radius: 4px; display: flex; align-items: center; pointer-events: auto; cursor: pointer; transition: filter 0.2s; }
+        .h-zone:hover { filter: brightness(1.2); }
+        .clamped-group { position: sticky; left: 10px; padding: 6px 10px; display: flex; flex-direction: column; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); border-radius: 8px; z-index: 50; border: 1.5px solid rgba(255,255,255,0.15); font-family: var(--font-hand); pointer-events: none; }
         .subject-name { font-weight: bold; font-size: 13px; color: inherit; }
         .comment-text { font-size: 11px; opacity: 0.9; white-space: nowrap; margin-top: -2px; }
         .v-line { position: absolute; top: 0; bottom: 0; width: 1.5px; z-index: 10; opacity: 0.3; pointer-events: none; }
@@ -97,6 +99,7 @@
         .toggle-btn { width: 45px; height: 45px; border: none; color: var(--bg); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 0 8px 8px 0; font-weight: bold; font-size: 18px; box-shadow: 4px 0 10px rgba(0,0,0,0.3); transition: transform 0.2s, background 0.3s; }
         #btn-constraints { background: var(--accent); }
         #btn-log { background: var(--log-accent); }
+        #btn-subnote { background: var(--sub-accent); }
         #btn-calendar { background: var(--cal-accent); }
         .toggle-btn.active { transform: scale(1.1); z-index: 3001; }
 
@@ -152,7 +155,7 @@
                 </div>
                 <div id="status-constraints" style="font-size: 9px; color: #4ade80; text-align: center; font-weight: bold;">SYNCED</div>
             </div>
-            <textarea class="text-editor" id="expression-editor" spellcheck="false" placeholder="{hey >= 2, lol, !7 !3}"></textarea>
+            <textarea class="text-editor" id="expression-editor" spellcheck="false" placeholder="{hey >= 2, lol, =2 =3}"></textarea>
         </div>
 
         <div class="sidebar-content-wrapper" id="panel-log" style="display: none;">
@@ -170,6 +173,15 @@
             </div>
             <textarea class="text-editor" id="log-editor" spellcheck="false" placeholder="Enter daily log..."></textarea>
         </div>
+
+        <div class="sidebar-content-wrapper" id="panel-subnote" style="display: none;">
+            <div class="context-header" style="border-bottom-color: var(--sub-accent);">
+                <label style="font-size: 9px; color: #64748b; font-weight: bold; letter-spacing: 1px;">SUBJECT NOTE</label>
+                <div id="subnote-subject-display" style="text-align:center; color: var(--sub-accent); font-weight: bold; font-size: 16px; padding: 10px 0;">SELECT A SUBJECT</div>
+                <div id="status-subnote" style="font-size: 9px; color: var(--sub-accent); text-align: center; font-weight: bold;">STANDBY</div>
+            </div>
+            <textarea class="text-editor" id="subnote-editor" spellcheck="false" placeholder="Select a timeline bar to edit its note..."></textarea>
+        </div>
     </div>
 
     <div class="resizer" id="resizer">
@@ -184,6 +196,7 @@
     <div class="bookmark-container">
         <button class="toggle-btn" id="btn-constraints" title="Constraints">✎</button>
         <button class="toggle-btn" id="btn-log" title="Daily Log">📋</button>
+        <button class="toggle-btn" id="btn-subnote" title="Subject Note">📝</button>
         <button class="toggle-btn" id="btn-calendar" title="Calendar">📅</button>
     </div>
 
@@ -206,6 +219,8 @@
     
     const editor = document.getElementById('expression-editor');
     const logEditor = document.getElementById('log-editor');
+    const subnoteEditor = document.getElementById('subnote-editor');
+    
     const timeline = document.getElementById('timeline');
     const headerRow = document.getElementById('header-row');
     const viewport = document.getElementById('viewport');
@@ -215,12 +230,19 @@
     
     const panelConstraints = document.getElementById('panel-constraints');
     const panelLog = document.getElementById('panel-log');
+    const panelSubnote = document.getElementById('panel-subnote');
+    
     const btnConstraints = document.getElementById('btn-constraints');
     const btnLog = document.getElementById('btn-log');
+    const btnSubnote = document.getElementById('btn-subnote');
+    
     const logDayInput = document.getElementById('log-day');
     const logMonthDisplay = document.getElementById('log-month-display');
+    const subnoteSubjectDisplay = document.getElementById('subnote-subject-display');
+    
     const statusLog = document.getElementById('status-log');
     const statusConstraints = document.getElementById('status-constraints');
+    const statusSubnote = document.getElementById('status-subnote');
     
     const calModal = document.getElementById('calendar-modal');
     const calGrid = document.getElementById('cal-days-grid');
@@ -242,16 +264,34 @@
     });
 
     logDayInput.value = realDay;
+    let activeSubject = null;
 
     let isResizing = false;
     resizer.addEventListener('mousedown', (e) => { isResizing = true; document.body.classList.add('resizing'); e.preventDefault(); });
     document.addEventListener('mousemove', (e) => { if (isResizing) { let newWidth = e.clientX; if (newWidth > 180 && newWidth < window.innerWidth * 0.8) { document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px'); } } });
     document.addEventListener('mouseup', () => { if (isResizing) { isResizing = false; document.body.classList.remove('resizing'); } });
 
-    let isPanning = false, startX, startY, scrollLeft, scrollTop;
-    viewport.addEventListener('mousedown', (e) => { if (e.target.closest('.clamped-group')) return; isPanning = true; document.body.classList.add('dragging'); startX = e.pageX - viewport.offsetLeft; startY = e.pageY - viewport.offsetTop; scrollLeft = viewport.scrollLeft; scrollTop = viewport.scrollTop; });
-    document.addEventListener('mousemove', (e) => { if (isPanning) { viewport.scrollLeft = scrollLeft - (e.pageX - viewport.offsetLeft - startX); viewport.scrollTop = scrollTop - (e.pageY - viewport.offsetTop - startY); } });
-    document.addEventListener('mouseup', () => { isPanning = false; document.body.classList.remove('dragging'); });
+    let isPanning = false, hasDragged = false, startX, startY, scrollLeft, scrollTop;
+    viewport.addEventListener('mousedown', (e) => { 
+        isPanning = true; 
+        hasDragged = false;
+        document.body.classList.add('dragging'); 
+        startX = e.pageX - viewport.offsetLeft; 
+        startY = e.pageY - viewport.offsetTop; 
+        scrollLeft = viewport.scrollLeft; 
+        scrollTop = viewport.scrollTop; 
+    });
+    document.addEventListener('mousemove', (e) => { 
+        if (isPanning) { 
+            hasDragged = true;
+            viewport.scrollLeft = scrollLeft - (e.pageX - viewport.offsetLeft - startX); 
+            viewport.scrollTop = scrollTop - (e.pageY - viewport.offsetTop - startY); 
+        } 
+    });
+    document.addEventListener('mouseup', () => { 
+        isPanning = false; 
+        document.body.classList.remove('dragging'); 
+    });
 
     let calDisplayMonth = realMonth;
     let calDisplayYear = realYear;
@@ -280,13 +320,35 @@
 
     let currentMode = 'constraints';
     function toggleSidebar(mode) { const isCollapsed = sidebar.classList.contains('collapsed'); if (isCollapsed) { sidebar.classList.remove('collapsed'); switchMode(mode); } else { if (currentMode === mode) sidebar.classList.add('collapsed'); else switchMode(mode); } }
+    
     function switchMode(mode) {
         currentMode = mode;
-        if (mode === 'constraints') { panelConstraints.style.display = 'flex'; panelLog.style.display = 'none'; btnConstraints.classList.add('active'); btnLog.classList.remove('active'); setTimeout(() => autoResize(editor), 10); }
-        else { panelConstraints.style.display = 'none'; panelLog.style.display = 'flex'; btnLog.classList.add('active'); btnConstraints.classList.remove('active'); fetchDailyLog(); }
+        panelConstraints.style.display = 'none';
+        panelLog.style.display = 'none';
+        panelSubnote.style.display = 'none';
+        btnConstraints.classList.remove('active');
+        btnLog.classList.remove('active');
+        btnSubnote.classList.remove('active');
+
+        if (mode === 'constraints') { 
+            panelConstraints.style.display = 'flex'; 
+            btnConstraints.classList.add('active'); 
+            setTimeout(() => autoResize(editor), 10); 
+        }
+        else if (mode === 'log') { 
+            panelLog.style.display = 'flex'; 
+            btnLog.classList.add('active'); 
+            fetchDailyLog(); 
+        }
+        else if (mode === 'subnote') {
+            panelSubnote.style.display = 'flex';
+            btnSubnote.classList.add('active');
+            if (activeSubject) fetchSubnote();
+        }
     }
     btnConstraints.onclick = () => toggleSidebar('constraints');
     btnLog.onclick = () => toggleSidebar('log');
+    btnSubnote.onclick = () => toggleSidebar('subnote');
 
     function clampLogDay() { const month = parseInt(monthPicker.value); const daysInMonth = new Date(realYear, month + 1, 0).getDate(); let val = parseInt(logDayInput.value) || 1; if (val > daysInMonth) val = daysInMonth; if (val < 1) val = 1; logDayInput.value = val; }
     logDayInput.onblur = () => { clampLogDay(); fetchDailyLog(); };
@@ -296,6 +358,23 @@
 
     async function fetchDailyLog() { statusLog.innerText = "SYNCING..."; const month = monthPicker.value; const day = logDayInput.value; logMonthDisplay.innerText = `${MONTHS[month].toUpperCase()} ${realYear}`; try { const snapshot = await get(ref(db, `logs/${realYear}/${month}/${day}`)); logEditor.value = snapshot.val() || ""; statusLog.innerText = "SYNCED"; autoResize(logEditor); } catch(e) { statusLog.innerText = "ERROR"; } }
     logEditor.oninput = () => { statusLog.innerText = "SAVING..."; set(ref(db, `logs/${realYear}/${monthPicker.value}/${logDayInput.value}`), logEditor.value).then(() => statusLog.innerText = "SAVED"); autoResize(logEditor); };
+
+    async function fetchSubnote() {
+        if(!activeSubject) return;
+        statusSubnote.innerText = "SYNCING...";
+        try {
+            const snapshot = await get(ref(db, `subnotes/${activeSubject}`));
+            subnoteEditor.value = snapshot.val() || "";
+            statusSubnote.innerText = "SYNCED";
+            autoResize(subnoteEditor);
+        } catch(e) { statusSubnote.innerText = "ERROR"; }
+    }
+    subnoteEditor.oninput = () => {
+        if(!activeSubject) return;
+        statusSubnote.innerText = "SAVING...";
+        set(ref(db, `subnotes/${activeSubject}`), subnoteEditor.value).then(() => statusSubnote.innerText = "SAVED");
+        autoResize(subnoteEditor);
+    };
 
     function autoResize(el) { el.style.height = '0px'; el.style.height = (el.scrollHeight) + 'px'; }
 
@@ -353,30 +432,26 @@
             const matches = (masterData[monthKey] || "").match(/\{.*?\}/g) || [];
             matches.forEach((raw) => {
                 const fullContent = raw.replace(/\{|\}/g, '').trim();
-                
-                // MULTI-EXCLUSION PARSING LOGIC (handles comma or space separated markers)
                 const parts = fullContent.split(',');
                 const logic = parts.shift().trim();
                 
-                let excludedDays = new Set();
+                // NEW INCLUSION LOGIC HERE
+                let includedDays = new Set();
                 let finalCommentParts = [];
                 
                 parts.forEach(part => {
                     let cleanTokens = [];
-                    // Split the part by spaces to check each word/token
                     let tokens = part.trim().split(/\s+/);
                     
                     tokens.forEach(tok => {
-                        // If the token is exactly !1 through !7, add to excluded days
-                        if (/^![1-7]$/.test(tok)) {
-                            excludedDays.add(parseInt(tok.substring(1)));
+                        // Changed from ! to =
+                        if (/^=[1-7]$/.test(tok)) {
+                            includedDays.add(parseInt(tok.substring(1)));
                         } else {
-                            // Otherwise, it's a regular comment word
                             cleanTokens.push(tok);
                         }
                     });
                     
-                    // If there are valid words left, reconstruct the comment portion
                     if (cleanTokens.length > 0) {
                         finalCommentParts.push(cleanTokens.join(' '));
                     }
@@ -418,10 +493,12 @@
                     
                     for (let d = left; d <= right; d++) {
                         let jsDay = new Date(realYear, viewMonthInt, d).getDay();
-                        // Convert JS Date (0=Sun, 1=Mon) to custom day (1=Mon ... 7=Sun)
                         let userDay = jsDay === 0 ? 7 : jsDay; 
                         
-                        if (!excludedDays.has(userDay)) {
+                        // Check if we should draw on this day
+                        let isValidDay = includedDays.size === 0 || includedDays.has(userDay);
+
+                        if (isValidDay) {
                             if (currentStart === null) currentStart = d;
                         } else {
                             if (currentStart !== null) {
@@ -450,6 +527,20 @@
         bar.className = 'h-zone';
         bar.style.cssText = `top:${y}px; left:${(start-1)*dw}px; width:${(end-start+1)*dw}px; background:${color}15; color:${color}; border-left:${showL?`2.5px solid ${color}`:'none'}; border-right:${showR?`2.5px solid ${color}`:'none'}`;
         bar.innerHTML = `<div class="clamped-group"><span class="subject-name">${name.toUpperCase()}</span>${comment?`<span class="comment-text">${comment}</span>`:''}</div>`;
+        
+        bar.onclick = (e) => {
+            if (hasDragged) return;
+            
+            activeSubject = name;
+            subnoteSubjectDisplay.innerText = name.toUpperCase();
+            
+            if(sidebar.classList.contains('collapsed')) {
+                sidebar.classList.remove('collapsed');
+            }
+            switchMode('subnote');
+            fetchSubnote();
+        };
+
         timeline.appendChild(bar);
     }
 
